@@ -162,6 +162,66 @@ def _texas(clip=True):
     return t1, t2, change_mask
 
 
+def _polmak_ls5_s2(reduce=False):
+    """ Load California dataset from .mat """
+    #import libtiff
+    #from libtiff import TIFF
+    from skimage import data, io, filters
+    mat = loadmat("data/California/UiT_HCD_California_2017.mat")
+
+    
+    print("Test clipped copied Polmak data with dummy change mask.")
+    # Calefornia data
+    #t1 = tf.convert_to_tensor(mat["t1_L8_clipped"], dtype=tf.float32)
+    #t2 = tf.convert_to_tensor(mat["logt2_clipped"], dtype=tf.float32)
+    #change_mask = tf.convert_to_tensor(mat["ROI"], dtype=tf.bool)
+    #print(tf.reduce_max(t1),  tf.reduce_min(t1))
+    #print(tf.reduce_max(t2),  tf.reduce_min(t2))
+    #t1 = _clip(t1)
+    #t2 = _clip(t2)
+    #print(t1.shape)
+    #print(t2.shape)
+    #print(change_mask.shape)
+
+    # Polmak data
+    im = io.imread("data/Polmak/collocate_260717S2_030705LS8_v3.tif")
+    print(im.shape)
+    t1 = np.array(im[:,:,0:10])
+    t2 = np.array(im[:,:,10:18])
+    print(t1.flags)
+    t1.setflags(write=1)
+    print(np.min(t1), np.max(t1))
+    print(np.min(t2), np.max(t2))
+    t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
+    t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
+    t1 = _clip(t1)
+    t2 = _clip(t2)
+    change_mask = np.eye(t1.shape[0], t1.shape[1])
+    change_mask = tf.convert_to_tensor(change_mask, dtype=tf.bool)
+    print(tf.reduce_max(t1),  tf.reduce_min(t1))
+    print(tf.reduce_max(t2),  tf.reduce_min(t2))
+    print(t1.shape)
+    print(t2.shape)
+    print(change_mask.shape)
+    #change_mask = tf.convert_to_tensor(np.ones(mat["ROI"].shape), dtype=tf.bool)
+    assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
+    if change_mask.ndim == 2:
+        change_mask = change_mask[..., np.newaxis]
+    if reduce:
+        print("Reduce has been DISABLED")
+        #reduction_ratios = (4, 4)
+        #new_dims = list(map(lambda a, b: a // b, change_mask.shape, reduction_ratios))
+        #t1 = tf.cast(tf.image.resize(t1, new_dims, antialias=True), dtype=tf.float32)
+        #t2 = tf.cast(tf.image.resize(t2, new_dims, antialias=True), dtype=tf.float32)
+        #change_mask = tf.cast(
+        #    tf.image.resize(tf.cast(change_mask, tf.uint8), new_dims, antialias=True),
+        #    tf.bool,
+        #)
+
+    return t1, t2, change_mask
+
+
+
 def _clip(image):
     """
         Normalize image from R_+ to [-1, 1].
@@ -176,6 +236,7 @@ def _clip(image):
             image - (h, w, c) image array normalized within [-1, 1]
     """
     temp = np.reshape(image, (-1, image.shape[-1]))
+    temp.setflags(write=1)
 
     limits = tf.reduce_mean(temp, 0) + 3.0 * tf.math.reduce_std(temp, 0)
     for i, limit in enumerate(limits):
@@ -241,6 +302,7 @@ DATASETS = {
     "Italy": _italy,
     "UK": _uk,
     "Denmark": _denmark,
+    "Polmak-LS5-S2": _polmak_ls5_s2,
 }
 prepare_data = {
     "Texas": True,
@@ -249,6 +311,7 @@ prepare_data = {
     "Italy": False,
     "UK": True,
     "Denmark": False,
+    "Polmak-LS5-S2": True,
 }
 
 
