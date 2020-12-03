@@ -170,7 +170,7 @@ def _polmak_ls5_s2(reduce=False):
     mat = loadmat("data/California/UiT_HCD_California_2017.mat")
 
     
-    print("Test clipped copied Polmak data with dummy change mask.")
+    print("3 December: Test normalised Polmak data with dummy change mask.")
     # Calefornia data
     #t1 = tf.convert_to_tensor(mat["t1_L8_clipped"], dtype=tf.float32)
     #t2 = tf.convert_to_tensor(mat["logt2_clipped"], dtype=tf.float32)
@@ -184,20 +184,35 @@ def _polmak_ls5_s2(reduce=False):
     #print(change_mask.shape)
 
     # Polmak data
-    im = io.imread("data/Polmak/collocate_260717S2_030705LS8_v3.tif")
+    im = io.imread("data/Polmak/collocate_260717S2_030705LS5_v3.tif")
+    changemap = io.imread("data/Polmak/ls5-s2-collocate-changemap.tif")
     print(im.shape)
+    print(changemap.shape)
     t1 = np.array(im[:,:,0:10])
-    t2 = np.array(im[:,:,10:18])
-    print(t1.flags)
-    t1.setflags(write=1)
+    t2 = np.array(im[:,:,10:17]) # np.array(im[:,:,10:17]) - correct size
+
+    print(np.min(changemap[:,:,0]))
+    print(np.min(changemap[:,:,1]))
+    print(np.min(changemap[:,:,2]))
+    # Normalise to -1 to 1 range (for channels)
+    t1 = _norm01(t1, norm_type='band')
+    t1 = 2*t1 -1
+    t2 = _norm01(t2, norm_type='band')
+    t2 = 2*t2 -1
+    # Normalise to -1 to 1 range (global)
+    #t1 = t1-np.min(t1)
+    #t1 = 2*t1/np.max(t1)
+    #t1 = t1 -1
+    #t2 = t2-np.min(t2)
+    #t2 = 2*t2/np.max(t2)
+    #t2 = t2 -1
     print(np.min(t1), np.max(t1))
     print(np.min(t2), np.max(t2))
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
-    t1 = _clip(t1)
-    t2 = _clip(t2)
-    change_mask = np.eye(t1.shape[0], t1.shape[1])
-    change_mask = tf.convert_to_tensor(change_mask, dtype=tf.bool)
+    #change_mask = np.eye(t1.shape[0], t1.shape[1])
+    #change_mask = tf.convert_to_tensor(change_mask, dtype=tf.bool)
+    change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
     print(tf.reduce_max(t1),  tf.reduce_min(t1))
     print(tf.reduce_max(t2),  tf.reduce_min(t2))
     print(t1.shape)
@@ -236,7 +251,6 @@ def _clip(image):
             image - (h, w, c) image array normalized within [-1, 1]
     """
     temp = np.reshape(image, (-1, image.shape[-1]))
-    temp.setflags(write=1)
 
     limits = tf.reduce_mean(temp, 0) + 3.0 * tf.math.reduce_std(temp, 0)
     for i, limit in enumerate(limits):
@@ -247,6 +261,45 @@ def _clip(image):
         temp[:, i] = channel
 
     return tf.reshape(tf.convert_to_tensor(temp, dtype=tf.float32), image.shape)
+
+
+def _norm01(input_array, norm_type='global', min_cap=None, max_cap=None, min_cap_value=np.NaN, max_cap_value=np.NaN):
+    """Normalize data.
+    
+    Parameters:
+    norm_type:
+        'band' - min and max of each variable (column) is 0 and 1
+        'global' - min of array is 0, max is 1
+    min_cap: Truncate values below this value to min_cap_value before normalizing
+    max_cap: Truncate values above this value to max_cap_value before normalizing
+    """
+    
+    # Ensure that original input is not modified
+    output_array = np.array(input_array, copy=True)
+    
+    # Replace values outside envolope/cap with NaNs (or specifie value)
+    if min_cap is not None:
+        output_array[output_array   < min_cap] = min_cap_value
+                   
+    if max_cap is not None:
+        output_array[output_array  > max_cap] = max_cap_value
+    
+    # Normalize data for selected normalization option
+    if norm_type.lower() in ['global', 'all', 'set']:
+        # Normalize to 0-1 (globally)
+        output_array = input_array - np.nanmin(input_array)
+        output_array = output_array/np.nanmax(output_array)
+    elif norm_type.lower() in ['band', 'channel']:
+        # Normalize to 0-1 for each channel (assumed to be last index)
+        # Get shape of input
+        input_shape = input_array.shape
+        output_array = np.zeros(input_shape)
+        # Normalize each channel
+        for i_channel in range(0, input_shape[2]):
+            output_array[:,:,i_channel] = input_array[:,:,i_channel] - np.nanmin(input_array[:,:,i_channel])
+            output_array[:,:,i_channel] = output_array[:,:,i_channel]/np.nanmax(output_array[:,:,i_channel])
+        
+    return output_array
 
 
 def _training_data_generator(x, y, p, patch_size):
@@ -311,7 +364,7 @@ prepare_data = {
     "Italy": False,
     "UK": True,
     "Denmark": False,
-    "Polmak-LS5-S2": True,
+    "Polmak-LS5-S2": False,
 }
 
 
@@ -411,6 +464,12 @@ def fetch(name, patch_size=100, **kwargs):
     evaluation_data = tf.data.Dataset.from_tensor_slices(tuple(dataset))
 
     c_x, c_y = x_im.shape[-1], y_im.shape[-1]
+
+    if name == "Polmak-LS5-S2":
+        print("Trying to change config...:")
+        #print(channel_y)
+        print(CONFIG)
+        channel_y = [1, 2, 3]
 
     return x, y, evaluation_data, (c_x, c_y)
 
