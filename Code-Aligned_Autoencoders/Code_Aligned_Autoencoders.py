@@ -295,9 +295,10 @@ def test(DATASET="Texas", CONFIG=None):
 
 
 if __name__ == "__main__":
-    #test("Texas")
-    #test("California")
-    #test("Italy")
-    #test("France")
-    #test("UK")
-    test("Polmak-LS5-S2")
+    DATASET = "Polmak-LS5-S2"
+    if DATASET == "Polmak-LS5-S2":
+        CONFIG = get_config_kACE(DATASET)
+        CONFIG["channel_y"] = [1, 2, 3]
+    else:
+        CONFIG = None
+    test(DATASET, CONFIG)
