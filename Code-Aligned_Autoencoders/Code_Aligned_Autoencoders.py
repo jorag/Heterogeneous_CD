@@ -295,10 +295,15 @@ def test(DATASET="Texas", CONFIG=None):
 
 
 if __name__ == "__main__":
-    DATASET = "Polmak-LS5-S2"
-    if DATASET == "Polmak-LS5-S2":
+    DATASET = "Polmak-LS5-S2" # "Polmak-LS5-S2-collocate" # "Polmak-LS5-S2" # "Polmak-A2-S2" # 
+    if DATASET in ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", 
+    "Polmak-LS5-S2-warp", "Polmak-A2-S2", "Polmak-A2-S2-collocate"]:
         CONFIG = get_config_kACE(DATASET)
-        CONFIG["channel_y"] = [1, 2, 3]
+        CONFIG["channel_y"] = [3, 2, 1]
+        if DATASET in ["Polmak-LS5-S2_ONLY_align"]:
+            from filtering import decorated_median_filter, decorated_gaussian_filter
+            CONFIG["final_filter"] = decorated_median_filter("z_median_filtered_diff")
     else:
         CONFIG = None
+
     test(DATASET, CONFIG)

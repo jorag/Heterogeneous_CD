@@ -162,7 +162,7 @@ def _texas(clip=True):
     return t1, t2, change_mask
 
 
-def _polmak_ls5_s2(reduce=False):
+def _polmak_ls5_s2_snap_collocate(reduce=False):
     """ Load California dataset from .mat """
     #import libtiff
     #from libtiff import TIFF
@@ -188,8 +188,12 @@ def _polmak_ls5_s2(reduce=False):
     changemap = io.imread("data/Polmak/ls5-s2-collocate-changemap.tif")
     print(im.shape)
     print(changemap.shape)
-    t1 = np.array(im[:,:,0:10])
-    t2 = np.array(im[:,:,10:17]) # np.array(im[:,:,10:17]) - correct size
+    
+    #t1 = np.array(im[:,:,10:17]) # np.array(im[:,:,10:17]) - correct size
+    #t2 = np.array(im[:,:,0:10])
+    t1 = np.array(im[:, :, 10:17]) # np.array(im[:,:,10:17]) - correct size
+    t2 = np.array(im[:, :, 0:10])
+    #changemap = changemap[:,:,:]
 
     print(np.min(changemap[:,:,0]))
     print(np.min(changemap[:,:,1]))
@@ -232,6 +236,188 @@ def _polmak_ls5_s2(reduce=False):
         #    tf.image.resize(tf.cast(change_mask, tf.uint8), new_dims, antialias=True),
         #    tf.bool,
         #)
+
+    return t1, t2, change_mask
+
+
+def _polmak_ls5_s2_warp_align(reduce=False):
+    """ Test LS5-S2 QGIS warp-aligned data. """
+    from skimage import data, io, filters
+
+
+    # Polmak data
+    im = io.imread("data/Polmak/ls5-s2-qgis-warp-align.tif")
+    changemap = io.imread("data/Polmak/ls5-s2-warp-align-changemap.tif")
+    print(im.shape)
+    print(changemap.shape)
+    print("16 December: Test LS5-S2 QGIS warp-aligned data.")
+    
+    t1 = np.array(im[:, :, 10:17]) # np.array(im[:,:,10:17]) - correct size
+    t2 = np.array(im[:, :, 0:10])
+
+    print(np.min(changemap[:,:,0]))
+    print(np.min(changemap[:,:,1]))
+    print(np.min(changemap[:,:,2]))
+    # Normalise to -1 to 1 range (for channels)
+    t1 = _norm01(t1, norm_type='band')
+    t1 = 2*t1 -1
+    t2 = _norm01(t2, norm_type='band')
+    t2 = 2*t2 -1
+
+    print(np.min(t1), np.max(t1))
+    print(np.min(t2), np.max(t2))
+    t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
+    t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
+
+    change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
+    print(tf.reduce_max(t1),  tf.reduce_min(t1))
+    print(tf.reduce_max(t2),  tf.reduce_min(t2))
+    print(t1.shape)
+    print(t2.shape)
+    print(change_mask.shape)
+
+    assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
+    if change_mask.ndim == 2:
+        change_mask = change_mask[..., np.newaxis]
+    if reduce:
+        print("Reduce has been DISABLED")
+
+    return t1, t2, change_mask
+
+
+def _polmak_ls5_s2(reduce=False):
+    """ Test LS5-S2 QGIS aligned data. """
+    from skimage import data, io, filters
+
+
+    # Polmak data
+    im = io.imread("data/Polmak/ls5-s2-qgis-align.tif")
+    changemap = io.imread("data/Polmak/ls5-s2-align-changemap.tif")
+    print(im.shape)
+    print(changemap.shape)
+    print("16 December: Test LS5-S2 QGIS aligned data, no warp.")
+    
+    t1 = np.array(im[:, :, 10:17]) 
+    t2 = np.array(im[:, :, 0:10])
+
+    print(np.min(changemap[:,:,0]))
+    print(np.min(changemap[:,:,1]))
+    print(np.min(changemap[:,:,2]))
+    # Normalise to -1 to 1 range (for channels)
+    t1 = _norm01(t1, norm_type='band')
+    t1 = 2*t1 -1
+    t2 = _norm01(t2, norm_type='band')
+    t2 = 2*t2 -1
+
+    print(np.min(t1), np.max(t1))
+    print(np.min(t2), np.max(t2))
+    t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
+    t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
+
+    change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
+    print(tf.reduce_max(t1),  tf.reduce_min(t1))
+    print(tf.reduce_max(t2),  tf.reduce_min(t2))
+    print(t1.shape)
+    print(t2.shape)
+    print(change_mask.shape)
+
+    assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
+    if change_mask.ndim == 2:
+        change_mask = change_mask[..., np.newaxis]
+    if reduce:
+        print("Reduce has been DISABLED")
+
+    return t1, t2, change_mask
+
+
+
+def _polmak_a2_s2_snap_collocate(reduce=False):
+    """ Load Polmak AVNIR-2 - Sentinel-2 dataset. SNAP collocate."""
+    from skimage import data, io, filters
+    
+    print("Test AVNIR-2 - S2 Polmak SNAP collocate data.")
+
+    # Polmak data
+    im = io.imread("data/Polmak/collocate_avnir2_s2_bandreduce.tif")
+    changemap = io.imread("data/Polmak/a2-s2-collocate-changemap.tif")
+    print(im.shape)
+    print(changemap.shape)
+    
+    t1 = np.array(im[:,:,12:16]) 
+    t2 = np.array(im[:,:,0:10])
+
+    print(np.min(changemap[:,:,0]))
+    print(np.min(changemap[:,:,1]))
+    print(np.min(changemap[:,:,2]))
+    # Normalise to -1 to 1 range (for channels)
+    t1 = _norm01(t1, norm_type='band')
+    t1 = 2*t1 -1
+    t2 = _norm01(t2, norm_type='band')
+    t2 = 2*t2 -1
+
+    print(np.min(t1), np.max(t1))
+    print(np.min(t2), np.max(t2))
+    t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
+    t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
+
+    change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
+    print(tf.reduce_max(t1),  tf.reduce_min(t1))
+    print(tf.reduce_max(t2),  tf.reduce_min(t2))
+    print(t1.shape)
+    print(t2.shape)
+    print(change_mask.shape)
+
+    assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
+    if change_mask.ndim == 2:
+        change_mask = change_mask[..., np.newaxis]
+    if reduce:
+        print("Reduce has been DISABLED")
+
+    return t1, t2, change_mask
+
+
+
+def _polmak_a2_s2(reduce=False):
+    """ Load Polmak AVNIR-2 - Sentinel-2 dataset. """
+    from skimage import data, io, filters
+    
+    print("7 December: Test a2-s2-qgis-warp-align.")
+
+    # Polmak data
+    im = io.imread("data/Polmak/a2-s2-qgis-warp-align.tif")
+    changemap = io.imread("data/Polmak/a2-s2-warp-align-changemap.tif")
+    print(im.shape)
+    print(changemap.shape)
+    
+    t1 = np.array(im[:,:,0:4]) 
+    t2 = np.array(im[:,:,6:16])
+
+    print(np.min(changemap[:,:,0]))
+    print(np.min(changemap[:,:,1]))
+    print(np.min(changemap[:,:,2]))
+    # Normalise to -1 to 1 range (for channels)
+    t1 = _norm01(t1, norm_type='band')
+    t1 = 2*t1 -1
+    t2 = _norm01(t2, norm_type='band')
+    t2 = 2*t2 -1
+
+    print(np.min(t1), np.max(t1))
+    print(np.min(t2), np.max(t2))
+    t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
+    t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
+
+    change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
+    print(tf.reduce_max(t1),  tf.reduce_min(t1))
+    print(tf.reduce_max(t2),  tf.reduce_min(t2))
+    print(t1.shape)
+    print(t2.shape)
+    print(change_mask.shape)
+
+    assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
+    if change_mask.ndim == 2:
+        change_mask = change_mask[..., np.newaxis]
+    if reduce:
+        print("Reduce has been DISABLED")
 
     return t1, t2, change_mask
 
@@ -356,6 +542,10 @@ DATASETS = {
     "UK": _uk,
     "Denmark": _denmark,
     "Polmak-LS5-S2": _polmak_ls5_s2,
+    "Polmak-LS5-S2-warp": _polmak_ls5_s2_warp_align,
+    "Polmak-LS5-S2-collocate": _polmak_ls5_s2_snap_collocate,
+    "Polmak-A2-S2": _polmak_a2_s2,
+    "Polmak-A2-S2-collocate": _polmak_a2_s2_snap_collocate,
 }
 prepare_data = {
     "Texas": True,
@@ -365,6 +555,10 @@ prepare_data = {
     "UK": True,
     "Denmark": False,
     "Polmak-LS5-S2": False,
+    "Polmak-LS5-S2-warp": False,
+    "Polmak-LS5-S2-collocate": False,
+    "Polmak-A2-S2": False,
+    "Polmak-A2-S2-collocate": False,
 }
 
 
@@ -464,12 +658,6 @@ def fetch(name, patch_size=100, **kwargs):
     evaluation_data = tf.data.Dataset.from_tensor_slices(tuple(dataset))
 
     c_x, c_y = x_im.shape[-1], y_im.shape[-1]
-
-    if name == "Polmak-LS5-S2":
-        print("Trying to change config...:")
-        #print(channel_y)
-        print(CONFIG)
-        channel_y = [1, 2, 3]
 
     return x, y, evaluation_data, (c_x, c_y)
 
