@@ -49,7 +49,7 @@ class ChangeDetector:
         # To keep a history for a specific training_metrics,
         # add `self.metrics_history[name] = []` in subclass __init__
         self.train_metrics = {}
-        self.difference_img_metrics = {"AUC": tf.keras.metrics.AUC()}
+        self.difference_img_metrics = {"ACC_di": tf.keras.metrics.Accuracy()} #{"AUC": tf.keras.metrics.AUC()}
         self.change_map_metrics = {
             "ACC": tf.keras.metrics.Accuracy(),
             "cohens kappa": CohenKappa(num_classes=2),
