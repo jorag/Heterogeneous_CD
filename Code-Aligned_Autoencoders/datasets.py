@@ -454,10 +454,64 @@ def _polmak_a2_s2(reduce=False):
     return t1, t2, change_mask
 
 
-def _polmak_ls5_pgnlmc(reduce=False):
+def _polmak_ls5_pgnlma(reduce=False):
     """ Test LS5-S2 QGIS aligned data. """
     from skimage import data, io, filters
 
+    # Polmak data
+    im = io.imread("data/Polmak/collocate_LS5_PGNLM_A_19-2-64.tif")
+    changemap = io.imread("data/Polmak/ls5-pgnlmA-collocate-changemap.tif")
+    print(im.shape)
+    print(changemap.shape) # chans = change map, lat, long
+    print("7 January: Test LS5-PGNLM-A, log-transform collocate.")
+    
+    t1 = np.array(im[:, :, 11:18]) 
+    t2 = np.array(im[:, :, 0:5])
+
+    # Take loagrithm of intensity data (or is it amplitude input?)
+    t2[:,:,0:4] = np.log(t2[:,:,0:4])
+
+    # Debug, for printing values
+    arr_print = t2
+    chans_print = [0,1,2,3,4]
+    for i_chan in chans_print:
+        print(np.min(arr_print[:,:,i_chan]), 
+        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+
+    # Normalise to -1 to 1 range (for channels)
+    t1 = _norm01(t1, norm_type='band')
+    t1 = 2*t1 -1
+    t2 = _norm01(t2, norm_type='band')
+    t2 = 2*t2 -1
+
+    # Debug, for printing values
+    arr_print = t2
+    for i_chan in chans_print:
+        print(np.min(arr_print[:,:,i_chan]), 
+        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+
+    t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
+    t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
+
+    change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
+    print(tf.reduce_max(t1),  tf.reduce_min(t1))
+    print(tf.reduce_max(t2),  tf.reduce_min(t2))
+    print(t1.shape)
+    print(t2.shape)
+    print(change_mask.shape)
+
+    assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
+    if change_mask.ndim == 2:
+        change_mask = change_mask[..., np.newaxis]
+    if reduce:
+        print("Reduce has been DISABLED")
+
+    return t1, t2, change_mask
+
+
+def _polmak_ls5_pgnlmc(reduce=False):
+    """ Test LS5-S2 QGIS aligned data. """
+    from skimage import data, io, filters
 
     # Polmak data
     im = io.imread("data/Polmak/collocate_LS5_PGNLM_C_19-2-64.tif")
@@ -485,9 +539,6 @@ def _polmak_ls5_pgnlmc(reduce=False):
     t2 = _norm01(t2, norm_type='band')
     t2 = 2*t2 -1
 
-    print(np.min(t1), np.max(t1))
-    print(np.min(t2), np.max(t2))
-
     # Debug, for printing values
     arr_print = t2
     for i_chan in chans_print:
@@ -511,7 +562,6 @@ def _polmak_ls5_pgnlmc(reduce=False):
         print("Reduce has been DISABLED")
 
     return t1, t2, change_mask
-
 
 
 def _clip(image):
@@ -636,6 +686,7 @@ DATASETS = {
     "Polmak-LS5-S2-warp": _polmak_ls5_s2_warp_align,
     "Polmak-LS5-S2-collocate": _polmak_ls5_s2_snap_collocate,
     "Polmak-LS5-S2-NDVI": _polmak_ls5_s2_ndvi,
+    "Polmak-LS5-PGNLM_A": _polmak_ls5_pgnlma,
     "Polmak-LS5-PGNLM_C": _polmak_ls5_pgnlmc,
     "Polmak-A2-S2": _polmak_a2_s2,
     "Polmak-A2-S2-collocate": _polmak_a2_s2_snap_collocate,
@@ -651,6 +702,7 @@ prepare_data = {
     "Polmak-LS5-S2-warp": False,
     "Polmak-LS5-S2-collocate": False,
     "Polmak-LS5-S2-NDVI": False,
+    "Polmak-LS5-PGNLM_A": False,
     "Polmak-LS5-PGNLM_C": False,
     "Polmak-A2-S2": False,
     "Polmak-A2-S2-collocate": False,
