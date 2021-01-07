@@ -187,27 +187,17 @@ def _polmak_ls5_s2_snap_collocate(reduce=False):
     im = io.imread("data/Polmak/collocate_260717S2_030705LS5_v3.tif")
     changemap = io.imread("data/Polmak/ls5-s2-collocate-changemap.tif")
     print(im.shape)
-    print(changemap.shape)
+    print(changemap.shape) # chans = change map, lat, long
     
     t1 = np.array(im[:, :, 10:17]) # np.array(im[:,:,10:17]) - correct size
     t2 = np.array(im[:, :, 0:10])
-    #changemap = changemap[:,:,:]
 
-    print(np.min(changemap[:,:,0]))
-    print(np.min(changemap[:,:,1]))
-    print(np.min(changemap[:,:,2]))
     # Normalise to -1 to 1 range (for channels)
     t1 = _norm01(t1, norm_type='band')
     t1 = 2*t1 -1
     t2 = _norm01(t2, norm_type='band')
     t2 = 2*t2 -1
-    # Normalise to -1 to 1 range (global)
-    #t1 = t1-np.min(t1)
-    #t1 = 2*t1/np.max(t1)
-    #t1 = t1 -1
-    #t2 = t2-np.min(t2)
-    #t2 = 2*t2/np.max(t2)
-    #t2 = t2 -1
+
     print(np.min(t1), np.max(t1))
     print(np.min(t2), np.max(t2))
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
@@ -242,20 +232,16 @@ def _polmak_ls5_s2_warp_align(reduce=False):
     """ Test LS5-S2 QGIS warp-aligned data. """
     from skimage import data, io, filters
 
-
     # Polmak data
     im = io.imread("data/Polmak/ls5-s2-qgis-warp-align.tif")
     changemap = io.imread("data/Polmak/ls5-s2-warp-align-changemap.tif")
     print(im.shape)
-    print(changemap.shape)
+    print(changemap.shape) # chans = change map, lat, long
     print("16 December: Test LS5-S2 QGIS warp-aligned data.")
     
     t1 = np.array(im[:, :, 10:17]) # np.array(im[:,:,10:17]) - correct size
     t2 = np.array(im[:, :, 0:10])
 
-    print(np.min(changemap[:,:,0]))
-    print(np.min(changemap[:,:,1]))
-    print(np.min(changemap[:,:,2]))
     # Normalise to -1 to 1 range (for channels)
     t1 = _norm01(t1, norm_type='band')
     t1 = 2*t1 -1
@@ -292,7 +278,7 @@ def _polmak_ls5_s2(reduce=False):
     im = io.imread("data/Polmak/ls5-s2-qgis-align.tif")
     changemap = io.imread("data/Polmak/ls5-s2-align-changemap.tif")
     print(im.shape)
-    print(changemap.shape)
+    print(changemap.shape) # chans = change map, lat, long
     print("16 December: Test LS5-S2 QGIS aligned data, no warp.")
     
     #t1 = np.array(im[:, :, 10:17]) 
@@ -301,9 +287,6 @@ def _polmak_ls5_s2(reduce=False):
     t2 = np.array(im[:, 2:, 0:10])
     changemap = changemap[:,1:-1,:]
 
-    print(np.min(changemap[:,:,0]))
-    print(np.min(changemap[:,:,1]))
-    print(np.min(changemap[:,:,2]))
     # Normalise to -1 to 1 range (for channels)
     t1 = _norm01(t1, norm_type='band')
     t1 = 2*t1 -1
@@ -383,7 +366,6 @@ def _polmak_ls5_s2_ndvi(reduce=False):
     return t1, t2, change_mask
 
 
-
 def _polmak_a2_s2_snap_collocate(reduce=False):
     """ Load Polmak AVNIR-2 - Sentinel-2 dataset. SNAP collocate."""
     from skimage import data, io, filters
@@ -440,14 +422,11 @@ def _polmak_a2_s2(reduce=False):
     im = io.imread("data/Polmak/a2-s2-qgis-warp-align.tif")
     changemap = io.imread("data/Polmak/a2-s2-warp-align-changemap.tif")
     print(im.shape)
-    print(changemap.shape)
+    print(changemap.shape) # chans = change map, lat, long
     
     t1 = np.array(im[:,:,0:4]) 
     t2 = np.array(im[:,:,6:16])
 
-    print(np.min(changemap[:,:,0]))
-    print(np.min(changemap[:,:,1]))
-    print(np.min(changemap[:,:,2]))
     # Normalise to -1 to 1 range (for channels)
     t1 = _norm01(t1, norm_type='band')
     t1 = 2*t1 -1
@@ -484,7 +463,7 @@ def _polmak_ls5_pgnlmc(reduce=False):
     im = io.imread("data/Polmak/collocate_LS5_PGNLM_C_19-2-64.tif")
     changemap = io.imread("data/Polmak/ls5-pgnlmC-collocate-changemap.tif")
     print(im.shape)
-    print(changemap.shape)
+    print(changemap.shape) # chans = change map, lat, long
     print("6 January: Test LS5-PGNLM-C, log-transform collocate.")
     
     t1 = np.array(im[:, :, 11:18]) 
