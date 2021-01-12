@@ -573,17 +573,17 @@ def _polmak_ls5_pgnlmc_stacked(reduce=False):
     changemap = io.imread("data/Polmak/ls5-pgnlmC-collocate-changemap.tif")
     print(im.shape)
     print(changemap.shape) # chans = change map, lat, long
-    print("7 January: OPT ONLY - Test LS5-PGNLM-C+S2, stacked, SAR log-transform collocate.")
+    print("12 January: Test LS5-PGNLM-C+S2, stacked, SAR log-transform collocate.")
     
     t1 = np.array(im[:, :, 11:18]) 
-    t2 = np.array(im[:, :, 5:9])
+    t2 = np.array(im[:, :, 0:9])
 
     # Take loagrithm of intensity data (or is it amplitude input?)
-    #t2[:,:,0:4] = np.log(t2[:,:,0:4])
+    t2[:,:,0:4] = np.log(t2[:,:,0:4])
 
     # Debug, for printing values
     arr_print = t2
-    chans_print = [0,1,2,3] #[0,1,2,3,4,5,6,7,8]
+    chans_print = [0,1,2,3,4,5,6,7,8]
     for i_chan in chans_print:
         print(np.min(arr_print[:,:,i_chan]), 
         np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
