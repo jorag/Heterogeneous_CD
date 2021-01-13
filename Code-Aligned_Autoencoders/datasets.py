@@ -472,11 +472,7 @@ def _polmak_ls5_pgnlma(reduce=False):
     t2[:,:,0:4] = np.log(t2[:,:,0:4])
 
     # Debug, for printing values
-    arr_print = t2
-    chans_print = [0,1,2,3,4]
-    for i_chan in chans_print:
-        print(np.min(arr_print[:,:,i_chan]), 
-        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+    _debug_print_bands(t2)
 
     # Normalise to -1 to 1 range (for channels)
     t1 = _norm01(t1, norm_type='band')
@@ -485,10 +481,7 @@ def _polmak_ls5_pgnlma(reduce=False):
     t2 = 2*t2 -1
 
     # Debug, for printing values
-    arr_print = t2
-    for i_chan in chans_print:
-        print(np.min(arr_print[:,:,i_chan]), 
-        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+    _debug_print_bands(t2)
 
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
@@ -527,11 +520,7 @@ def _polmak_ls5_pgnlmc(reduce=False):
     t2[:,:,0:4] = np.log(t2[:,:,0:4])
 
     # Debug, for printing values
-    arr_print = t2
-    chans_print = [0,1,2,3,4]
-    for i_chan in chans_print:
-        print(np.min(arr_print[:,:,i_chan]), 
-        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+    _debug_print_bands(t2)
 
     # Normalise to -1 to 1 range (for channels)
     t1 = _norm01(t1, norm_type='band')
@@ -540,10 +529,7 @@ def _polmak_ls5_pgnlmc(reduce=False):
     t2 = 2*t2 -1
 
     # Debug, for printing values
-    arr_print = t2
-    for i_chan in chans_print:
-        print(np.min(arr_print[:,:,i_chan]), 
-        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+    _debug_print_bands(t2)
 
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
@@ -582,11 +568,7 @@ def _polmak_ls5_pgnlmc_stacked(reduce=False):
     t2[:,:,0:4] = np.log(t2[:,:,0:4])
 
     # Debug, for printing values
-    arr_print = t2
-    chans_print = [0,1,2,3,4,5,6,7,8]
-    for i_chan in chans_print:
-        print(np.min(arr_print[:,:,i_chan]), 
-        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+    _debug_print_bands(t2)
 
     # Normalise to -1 to 1 range (for channels)
     t1 = _norm01(t1, norm_type='band')
@@ -595,10 +577,7 @@ def _polmak_ls5_pgnlmc_stacked(reduce=False):
     t2 = 2*t2 -1
 
     # Debug, for printing values
-    arr_print = t2
-    for i_chan in chans_print:
-        print(np.min(arr_print[:,:,i_chan]), 
-        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+    _debug_print_bands(t2)
 
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
@@ -637,11 +616,7 @@ def _polmak_ls5_pgnlma_stacked(reduce=False):
     t2[:,:,0:4] = np.log(t2[:,:,0:4])
 
     # Debug, for printing values
-    arr_print = t2
-    chans_print = [0,1,2,3,4,5,6,7,8]
-    for i_chan in chans_print:
-        print(np.min(arr_print[:,:,i_chan]), 
-        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+    _debug_print_bands(t2)
 
     # Normalise to -1 to 1 range (for channels)
     t1 = _norm01(t1, norm_type='band')
@@ -650,10 +625,7 @@ def _polmak_ls5_pgnlma_stacked(reduce=False):
     t2 = 2*t2 -1
 
     # Debug, for printing values
-    arr_print = t2
-    for i_chan in chans_print:
-        print(np.min(arr_print[:,:,i_chan]), 
-        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+    _debug_print_bands(t2)
 
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
@@ -681,12 +653,15 @@ def _polmak_pal_rs2_010817(reduce=False):
     # Polmak data
     im = io.imread("data/Polmak/subset_0_of_collocate_PalSAR_RS2-20170801.tif")
     changemap = io.imread("data/Polmak/pal-RS2_010817-collocate-changemap.tif")
-    print(im.shape)
-    print(changemap.shape) # chans = change map, lat, long
-    print("12 January: Test PalSAR-RS2 data.")
+    print("13 January: Test PalSAR-RS2 data.")
     
     t1 = np.array(im[:, :, 7:9]) 
     t2 = np.array(im[:, :, 0:4])
+
+    print('t1 - input values - PalSAR bands')
+    _debug_print_bands(t1)
+    print('t2 - input values - RADARSAT-2 bands')
+    _debug_print_bands(t2)
 
     # Take loagrithm of intensity data 
     # To fix negative intensity values in PalSAR
@@ -696,11 +671,10 @@ def _polmak_pal_rs2_010817(reduce=False):
     t2= np.log(t2)
 
     # Debug, for printing values
-    arr_print = t2
-    chans_print = [0,1]
-    for i_chan in chans_print:
-        print(np.min(arr_print[:,:,i_chan]), 
-        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+    print('t1 - log - PalSAR bands')
+    _debug_print_bands(t1)
+    print('t2 - log - RADARSAT-2 bands')
+    _debug_print_bands(t2)
 
     # Normalise to -1 to 1 range (for channels)
     t1 = _norm01(t1, norm_type='band')
@@ -709,17 +683,15 @@ def _polmak_pal_rs2_010817(reduce=False):
     t2 = 2*t2 -1
 
     # Debug, for printing values
-    arr_print = t2
-    for i_chan in chans_print:
-        print(np.min(arr_print[:,:,i_chan]), 
-        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+    print('t1 - normalised -  PalSAR bands')
+    _debug_print_bands(t1)
+    print('t2 - normalised -  RADARSAT-2 bands')
+    _debug_print_bands(t2)
 
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
 
     change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-    print(tf.reduce_max(t1),  tf.reduce_min(t1))
-    print(tf.reduce_max(t2),  tf.reduce_min(t2))
     print(t1.shape)
     print(t2.shape)
     print(change_mask.shape)
@@ -796,6 +768,19 @@ def _norm01(input_array, norm_type='global', min_cap=None, max_cap=None, min_cap
             output_array[:,:,i_channel] = output_array[:,:,i_channel]/np.nanmax(output_array[:,:,i_channel])
         
     return output_array
+
+
+def _debug_print_bands(arr_print, chans_print= None):
+    """Debug, print statistics for each band."""
+    
+    # Print all channels if no list is provided
+    if chans_print is None:
+        chans_print = range(0, arr_print.shape[2])
+    
+    # Print
+    for i_chan in chans_print:
+        print(np.min(arr_print[:,:,i_chan]), 
+        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
 
 
 def _training_data_generator(x, y, p, patch_size):
