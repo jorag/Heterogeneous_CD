@@ -674,6 +674,65 @@ def _polmak_ls5_pgnlma_stacked(reduce=False):
     return t1, t2, change_mask
 
 
+def _polmak_pal_rs2_010817(reduce=False):
+    """ Test PalSAR-RS2 data. """
+    from skimage import data, io, filters
+
+    # Polmak data
+    im = io.imread("data/Polmak/subset_0_of_collocate_PalSAR_RS2-20170801.tif")
+    changemap = io.imread("data/Polmak/pal-RS2_010817-collocate-changemap.tif")
+    print(im.shape)
+    print(changemap.shape) # chans = change map, lat, long
+    print("12 January: Test PalSAR-RS2 data.")
+    
+    t1 = np.array(im[:, :, 7:9]) 
+    t2 = np.array(im[:, :, 0:4])
+
+    # Take loagrithm of intensity data 
+    # To fix negative intensity values in PalSAR
+    new_min = np.min(t2)
+    t1 = t1 - np.min(t1) + new_min
+    t1= np.log(t1)
+    t2= np.log(t2)
+
+    # Debug, for printing values
+    arr_print = t2
+    chans_print = [0,1]
+    for i_chan in chans_print:
+        print(np.min(arr_print[:,:,i_chan]), 
+        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+
+    # Normalise to -1 to 1 range (for channels)
+    t1 = _norm01(t1, norm_type='band')
+    t1 = 2*t1 -1
+    t2 = _norm01(t2, norm_type='band')
+    t2 = 2*t2 -1
+
+    # Debug, for printing values
+    arr_print = t2
+    for i_chan in chans_print:
+        print(np.min(arr_print[:,:,i_chan]), 
+        np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+
+    t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
+    t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
+
+    change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
+    print(tf.reduce_max(t1),  tf.reduce_min(t1))
+    print(tf.reduce_max(t2),  tf.reduce_min(t2))
+    print(t1.shape)
+    print(t2.shape)
+    print(change_mask.shape)
+
+    assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
+    if change_mask.ndim == 2:
+        change_mask = change_mask[..., np.newaxis]
+    if reduce:
+        print("Reduce has been DISABLED")
+
+    return t1, t2, change_mask
+
+
 def _clip(image):
     """
         Normalize image from R_+ to [-1, 1].
@@ -802,6 +861,7 @@ DATASETS = {
     "Polmak-LS5-PGNLM_C-stacked": _polmak_ls5_pgnlmc_stacked,
     "Polmak-A2-S2": _polmak_a2_s2,
     "Polmak-A2-S2-collocate": _polmak_a2_s2_snap_collocate,
+    "Polmak-Pal-RS2_010817-collocate": _polmak_pal_rs2_010817,
 }
 prepare_data = {
     "Texas": True,
@@ -820,6 +880,7 @@ prepare_data = {
     "Polmak-LS5-PGNLM_C-stacked": False,
     "Polmak-A2-S2": False,
     "Polmak-A2-S2-collocate": False,
+    "Polmak-Pal-RS2_010817-collocate": False,
 }
 
 
