@@ -134,14 +134,20 @@ if __name__ == "__main__":
     polmak_list = ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", 
     "Polmak-LS5-S2-warp", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
     "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]
-    process_list = ["Polmak-LS5-S2-NDVI"]
+    process_list = ["Polmak-LS5-S2"] #["Polmak-Pal-RS2_010817-collocate"]
     for DATASET in process_list:
+        CONFIG = get_config_kACE(DATASET)
         if DATASET in polmak_list:
-            CONFIG = get_config_kACE(DATASET)
-            CONFIG["channel_y"] = [3, 2, 1]
+            CONFIG["channel_y"] = [2, 1, 0]
             if DATASET in ["Polmak-LS5-S2_ONLY_align"]:
                 from filtering import decorated_median_filter, decorated_gaussian_filter
                 CONFIG["final_filter"] = decorated_median_filter("z_median_filtered_diff")
+        if DATASET in ["Polmak-Pal-RS2_010817-collocate"]:
+            CONFIG["channel_x"] = [0, 1]
+            CONFIG["channel_y"] = [0, 1, 3]
+        if DATASET in ["Polmak-LS5-S2"]:
+            CONFIG["channel_x"] = [0, 1, 2]
+            CONFIG["channel_y"] = [2, 1, 0]
         else:
             CONFIG = get_config_kACE(DATASET)
         # Change
