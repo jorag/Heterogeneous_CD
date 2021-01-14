@@ -279,7 +279,7 @@ def _polmak_ls5_s2(reduce=False):
     changemap = io.imread("data/Polmak/ls5-s2-align-changemap.tif")
     print(im.shape)
     print(changemap.shape) # chans = change map, lat, long
-    print("16 December: Test LS5-S2 QGIS aligned data, no warp.")
+    print("13 January: Test CLIP normalised LS5-S2 QGIS aligned data, no warp.")
     
     #t1 = np.array(im[:, :, 10:17]) 
     #t2 = np.array(im[:, :, 0:10])
@@ -287,20 +287,30 @@ def _polmak_ls5_s2(reduce=False):
     t2 = np.array(im[:, 2:, 0:10])
     changemap = changemap[:,1:-1,:]
 
-    # Normalise to -1 to 1 range (for channels)
-    t1 = _norm01(t1, norm_type='band')
-    t1 = 2*t1 -1
-    t2 = _norm01(t2, norm_type='band')
-    t2 = 2*t2 -1
+    print("Bands t1 - before normalisation")
+    _debug_print_bands(t1)
+    print("Bands t2 - before normalisation")
+    _debug_print_bands(t2)
 
-    print(np.min(t1), np.max(t1))
-    print(np.min(t2), np.max(t2))
+    # Normalise to -1 to 1 range (for channels)
+    t1 = np.array(t1, dtype=np.single)
+    t2 = np.array(t2, dtype=np.single)
+    t1, t2 = _clip(t1), _clip(t2)
+    #t1 = _norm01(t1, norm_type='band')
+    #t1 = 2*t1 -1
+    #t2 = _norm01(t2, norm_type='band')
+    #t2 = 2*t2 -1
+
+    print("Bands t1 - after normalisation")
+    _debug_print_bands(t1)
+    print("Bands t2 - after normalisation")
+    _debug_print_bands(t2)
+
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
 
     change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-    print(tf.reduce_max(t1),  tf.reduce_min(t1))
-    print(tf.reduce_max(t2),  tf.reduce_min(t2))
+
     print(t1.shape)
     print(t2.shape)
     print(change_mask.shape)
@@ -653,7 +663,7 @@ def _polmak_pal_rs2_010817(reduce=False):
     # Polmak data
     im = io.imread("data/Polmak/subset_0_of_collocate_PalSAR_RS2-20170801.tif")
     changemap = io.imread("data/Polmak/pal-RS2_010817-collocate-changemap.tif")
-    print("13 January: Test PalSAR-RS2 data.")
+    print("13 January: Test PalSAR-RS2 data, CLIP, channel-wise PalSAR negative value removal.")
     
     t1 = np.array(im[:, :, 7:9]) 
     t2 = np.array(im[:, :, 0:4])
@@ -666,7 +676,8 @@ def _polmak_pal_rs2_010817(reduce=False):
     # Take loagrithm of intensity data 
     # To fix negative intensity values in PalSAR
     new_min = np.min(t2)
-    t1 = t1 - np.min(t1) + new_min
+    t1[:,:,0] = t1[:,:,0] - np.min(t1[:,:,0]) + new_min
+    t1[:,:,1] = t1[:,:,1] - np.min(t1[:,:,1]) + new_min
     t1= np.log(t1)
     t2= np.log(t2)
 
@@ -677,10 +688,13 @@ def _polmak_pal_rs2_010817(reduce=False):
     _debug_print_bands(t2)
 
     # Normalise to -1 to 1 range (for channels)
-    t1 = _norm01(t1, norm_type='band')
-    t1 = 2*t1 -1
-    t2 = _norm01(t2, norm_type='band')
-    t2 = 2*t2 -1
+    t1 = np.array(t1, dtype=np.single)
+    t2 = np.array(t2, dtype=np.single)
+    t1, t2 = _clip(t1), _clip(t2)
+    #t1 = _norm01(t1, norm_type='band')
+    #t1 = 2*t1 -1
+    #t2 = _norm01(t2, norm_type='band')
+    #t2 = 2*t2 -1
 
     # Debug, for printing values
     print('t1 - normalised -  PalSAR bands')
