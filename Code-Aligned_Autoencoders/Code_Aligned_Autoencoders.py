@@ -295,19 +295,40 @@ def test(DATASET="Texas", CONFIG=None):
 
 
 if __name__ == "__main__":
-    DATASET = "Polmak-Pal-RS2_010817-collocate" #"Polmak-LS5-S2" # "Polmak-LS5-PGNLM_A-stacked" # "Polmak-LS5-PGNLM_A" # "Polmak-LS5-S2-NDVI" # "Polmak-LS5-PGNLM_C" # "Polmak-LS5-S2" # "Polmak-LS5-S2-collocate" # "Polmak-LS5-S2" # "Polmak-A2-S2" # 
-    if DATASET in ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", 
+    #DATASET = "Polmak-LS5-PGNLM_C" # "Polmak-LS5-S2-collocate"  # "Polmak-Pal-RS2_010817-collocate" #"Polmak-LS5-S2" # "Polmak-LS5-PGNLM_A-stacked" # "Polmak-LS5-PGNLM_A" # "Polmak-LS5-S2-NDVI" # "Polmak-A2-S2" # 
+    #DATASET = "Polmak-LS5-PGNLM_C-stacked" 
+    polmak_list = ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", 
     "Polmak-LS5-S2-warp", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
-    "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked", "Polmak-Pal-RS2_010817-collocate"]:
+    "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]
+    process_list = ["Polmak-A2-S2-collocate", "Polmak-A2-S2"] #["Polmak-LS5-S2"] #["Polmak-Pal-RS2_010817-collocate"]
+    for DATASET in process_list:
+        print(DATASET)
+    #if DATASET in ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", 
+    #"Polmak-LS5-S2-warp", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
+    #"Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked", "Polmak-Pal-RS2_010817-collocate"]:
         CONFIG = get_config_kACE(DATASET)
         CONFIG["channel_y"] = [3, 2, 1]
         if DATASET in ["Polmak-LS5-S2_ONLY_align"]:
             from filtering import decorated_median_filter, decorated_gaussian_filter
             CONFIG["final_filter"] = decorated_median_filter("z_median_filtered_diff")
         if DATASET in ["Polmak-Pal-RS2_010817-collocate"]:
-            CONFIG["channel_x"] = [0, 1]
+            CONFIG["channel_x"] = [0]
             CONFIG["channel_y"] = [0, 1, 3]
-    else:
-        CONFIG = None
+        
+        # Set x-channels
+        if DATASET in ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", "Polmak-LS5-S2-warp", 
+            "Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]:
+            CONFIG["channel_x"] = [0, 1, 2] # LS5 RGB
+        if DATASET in ["Polmak-A2-S2", "Polmak-A2-S2-collocate"]:
+            CONFIG["channel_x"] = [2, 1, 0] # ALOS AVNIR
+        
+        # Set y-channels
+        if DATASET in ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", "Polmak-LS5-S2-warp", 
+            "Polmak-A2-S2", "Polmak-A2-S2-collocate"]:
+            CONFIG["channel_y"] = [2, 1, 0] # S2 RGB
+        if DATASET in ["Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]:
+            CONFIG["channel_y"] = [0, 1, 2] # C11, C22, C33
+        if DATASET in ["Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]:
+            CONFIG["channel_y"] = [7, 1, 2] # Red, C22, C33
 
-    test(DATASET, CONFIG)
+        test(DATASET, CONFIG)
