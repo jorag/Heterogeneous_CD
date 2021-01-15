@@ -380,7 +380,7 @@ def _polmak_a2_s2_snap_collocate(reduce=False):
     """ Load Polmak AVNIR-2 - Sentinel-2 dataset. SNAP collocate."""
     from skimage import data, io, filters
     
-    print("Test AVNIR-2 - S2 Polmak SNAP collocate data.")
+    print("15 January: Test AVNIR-2 - S2 Polmak _clip-norm, SNAP collocate data.")
 
     # Polmak data
     im = io.imread("data/Polmak/collocate_avnir2_s2_bandreduce.tif")
@@ -391,23 +391,24 @@ def _polmak_a2_s2_snap_collocate(reduce=False):
     t1 = np.array(im[:,:,12:16]) 
     t2 = np.array(im[:,:,0:10])
 
-    print(np.min(changemap[:,:,0]))
-    print(np.min(changemap[:,:,1]))
-    print(np.min(changemap[:,:,2]))
     # Normalise to -1 to 1 range (for channels)
-    t1 = _norm01(t1, norm_type='band')
-    t1 = 2*t1 -1
-    t2 = _norm01(t2, norm_type='band')
-    t2 = 2*t2 -1
+    t1 = np.array(t1, dtype=np.single)
+    t2 = np.array(t2, dtype=np.single)
+    t1, t2 = _clip(t1), _clip(t2)
+    #t1 = _norm01(t1, norm_type='band')
+    #t1 = 2*t1 -1
+    #t2 = _norm01(t2, norm_type='band')
+    #t2 = 2*t2 -1
 
-    print(np.min(t1), np.max(t1))
-    print(np.min(t2), np.max(t2))
+    # Debug, for printing values
+    _debug_print_bands(t1)
+    _debug_print_bands(t2)
+
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
 
     change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-    print(tf.reduce_max(t1),  tf.reduce_min(t1))
-    print(tf.reduce_max(t2),  tf.reduce_min(t2))
+
     print(t1.shape)
     print(t2.shape)
     print(change_mask.shape)
@@ -426,7 +427,7 @@ def _polmak_a2_s2(reduce=False):
     """ Load Polmak AVNIR-2 - Sentinel-2 dataset. """
     from skimage import data, io, filters
     
-    print("7 December: Test a2-s2-qgis-warp-align.")
+    print("15 January: Test _clip-norm a2-s2-qgis-warp-align.")
 
     # Polmak data
     im = io.imread("data/Polmak/a2-s2-qgis-warp-align.tif")
@@ -437,20 +438,28 @@ def _polmak_a2_s2(reduce=False):
     t1 = np.array(im[:,:,0:4]) 
     t2 = np.array(im[:,:,6:16])
 
-    # Normalise to -1 to 1 range (for channels)
-    t1 = _norm01(t1, norm_type='band')
-    t1 = 2*t1 -1
-    t2 = _norm01(t2, norm_type='band')
-    t2 = 2*t2 -1
+    # Debug, for printing values
+    _debug_print_bands(t1)
+    _debug_print_bands(t2)
 
-    print(np.min(t1), np.max(t1))
-    print(np.min(t2), np.max(t2))
+    # Normalise to -1 to 1 range (for channels)
+    t1 = np.array(t1, dtype=np.single)
+    t2 = np.array(t2, dtype=np.single)
+    t1, t2 = _clip(t1), _clip(t2)
+    #t1 = _norm01(t1, norm_type='band')
+    #t1 = 2*t1 -1
+    #t2 = _norm01(t2, norm_type='band')
+    #t2 = 2*t2 -1
+
+    # Debug, for printing values
+    _debug_print_bands(t1)
+    _debug_print_bands(t2)
+
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
 
     change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-    print(tf.reduce_max(t1),  tf.reduce_min(t1))
-    print(tf.reduce_max(t2),  tf.reduce_min(t2))
+
     print(t1.shape)
     print(t2.shape)
     print(change_mask.shape)
@@ -519,26 +528,33 @@ def _polmak_ls5_pgnlmc(reduce=False):
     # Polmak data
     im = io.imread("data/Polmak/collocate_LS5_PGNLM_C_19-2-64.tif")
     changemap = io.imread("data/Polmak/ls5-pgnlmC-collocate-changemap.tif")
-    print(im.shape)
-    print(changemap.shape) # chans = change map, lat, long
-    print("6 January: Test LS5-PGNLM-C, log-transform collocate.")
+
+    print("14 January: Test LS5-PGNLM-C, CLIP_norm, log-transform collocate.")
     
     t1 = np.array(im[:, :, 11:18]) 
     t2 = np.array(im[:, :, 0:5])
 
     # Take loagrithm of intensity data (or is it amplitude input?)
     t2[:,:,0:4] = np.log(t2[:,:,0:4])
+    t2[:,:,0:4] = _norm01(t2[:,:,0:4], norm_type='global') + 1
+    t2_temp = _norm01(t2, norm_type='band') + 1
+    t2[:,:,4] = t2_temp[:,:,4]
 
     # Debug, for printing values
+    _debug_print_bands(t1)
     _debug_print_bands(t2)
 
     # Normalise to -1 to 1 range (for channels)
-    t1 = _norm01(t1, norm_type='band')
-    t1 = 2*t1 -1
-    t2 = _norm01(t2, norm_type='band')
-    t2 = 2*t2 -1
+    t1 = np.array(t1, dtype=np.single)
+    t2 = np.array(t2, dtype=np.single)
+    t1, t2 = _clip(t1), _clip(t2)
+    #t1 = _norm01(t1, norm_type='band')
+    #t1 = 2*t1 -1
+    #t2 = _norm01(t2, norm_type='band')
+    #t2 = 2*t2 -1
 
     # Debug, for printing values
+    _debug_print_bands(t1)
     _debug_print_bands(t2)
 
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
