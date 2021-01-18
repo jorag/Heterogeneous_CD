@@ -473,34 +473,50 @@ def _polmak_a2_s2(reduce=False):
     return t1, t2, change_mask
 
 
-def _polmak_ls5_pgnlma(reduce=False):
+def _polmak_ls5_pgnlma(load_options=None):
     """ Test LS5-S2 QGIS aligned data. """
     from skimage import data, io, filters
+
+    if not isinstance(load_options, dict):
+        load_options = dict()
+        load_options["norm_type"] = "_clip"
+        load_options["debug"] = False
 
     # Polmak data
     im = io.imread("data/Polmak/collocate_LS5_PGNLM_A_19-2-64.tif")
     changemap = io.imread("data/Polmak/ls5-pgnlmA-collocate-changemap.tif")
-    print(im.shape)
-    print(changemap.shape) # chans = change map, lat, long
-    print("7 January: Test LS5-PGNLM-A, log-transform collocate.")
+
+    print("15 January: Test LS5-PGNLM-A, LOAD OPTIONS, log-transform collocate.")
     
     t1 = np.array(im[:, :, 11:18]) 
     t2 = np.array(im[:, :, 0:5])
-
     # Take loagrithm of intensity data (or is it amplitude input?)
     t2[:,:,0:4] = np.log(t2[:,:,0:4])
 
-    # Debug, for printing values
-    _debug_print_bands(t2)
-
-    # Normalise to -1 to 1 range (for channels)
-    t1 = _norm01(t1, norm_type='band')
-    t1 = 2*t1 -1
-    t2 = _norm01(t2, norm_type='band')
-    t2 = 2*t2 -1
-
-    # Debug, for printing values
-    _debug_print_bands(t2)
+    if load_options["norm_type"] in ["_clip", "clip"]:
+        print("Clipping....")
+        # Ensure minimum is zero
+        t2[:,:,0:4] = _norm01(t2[:,:,0:4], norm_type='global') 
+        t2_temp = _norm01(t2, norm_type='band')
+        t2[:,:,4] = t2_temp[:,:,4]
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+        # Normalise to -1 to 1 range (for channels)
+        t1 = np.array(t1, dtype=np.single)
+        t2 = np.array(t2, dtype=np.single)
+        t1, t2 = _clip(t1), _clip(t2)
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+    else:
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+        # Normalise to -1 to 1 range (for channels)
+        t1 = _norm01(t1, norm_type='band')
+        t1 = 2*t1 -1
+        t2 = _norm01(t2, norm_type='band')
+        t2 = 2*t2 -1
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
 
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
@@ -515,47 +531,54 @@ def _polmak_ls5_pgnlma(reduce=False):
     assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
     if change_mask.ndim == 2:
         change_mask = change_mask[..., np.newaxis]
-    if reduce:
-        print("Reduce has been DISABLED")
 
     return t1, t2, change_mask
 
 
-def _polmak_ls5_pgnlmc(reduce=False):
+def _polmak_ls5_pgnlmc(load_options=None):
     """ Test LS5-S2 QGIS aligned data. """
     from skimage import data, io, filters
-
+    if not isinstance(load_options, dict):
+        load_options = dict()
+        load_options["norm_type"] = "_clip"
+        load_options["debug"] = False
+    
     # Polmak data
     im = io.imread("data/Polmak/collocate_LS5_PGNLM_C_19-2-64.tif")
     changemap = io.imread("data/Polmak/ls5-pgnlmC-collocate-changemap.tif")
 
-    print("14 January: Test LS5-PGNLM-C, CLIP_norm, log-transform collocate.")
+    print("15 January: Test LS5-PGNLM-C, load options, log-transform collocate.")
     
     t1 = np.array(im[:, :, 11:18]) 
     t2 = np.array(im[:, :, 0:5])
 
     # Take loagrithm of intensity data (or is it amplitude input?)
     t2[:,:,0:4] = np.log(t2[:,:,0:4])
-    t2[:,:,0:4] = _norm01(t2[:,:,0:4], norm_type='global') + 1
-    t2_temp = _norm01(t2, norm_type='band') + 1
-    t2[:,:,4] = t2_temp[:,:,4]
 
-    # Debug, for printing values
-    _debug_print_bands(t1)
-    _debug_print_bands(t2)
-
-    # Normalise to -1 to 1 range (for channels)
-    t1 = np.array(t1, dtype=np.single)
-    t2 = np.array(t2, dtype=np.single)
-    t1, t2 = _clip(t1), _clip(t2)
-    #t1 = _norm01(t1, norm_type='band')
-    #t1 = 2*t1 -1
-    #t2 = _norm01(t2, norm_type='band')
-    #t2 = 2*t2 -1
-
-    # Debug, for printing values
-    _debug_print_bands(t1)
-    _debug_print_bands(t2)
+    if load_options["norm_type"] in ["_clip", "clip", "_clip_norm"]:
+        print("Clipping....")
+        # Ensure minimum is zero
+        t2[:,:,0:4] = _norm01(t2[:,:,0:4], norm_type='global') 
+        t2_temp = _norm01(t2, norm_type='band')
+        t2[:,:,4] = t2_temp[:,:,4]
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+        # Normalise to -1 to 1 range (for channels)
+        t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
+        #t2 = np.array(t2, dtype=np.single)
+        t1, t2 = _clip(t1), _clip(t2)
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+    else:
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+        # Normalise to -1 to 1 range (for channels)
+        t1 = _norm01(t1, norm_type='band')
+        t1 = 2*t1 -1
+        t2 = _norm01(t2, norm_type='band')
+        t2 = 2*t2 -1
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
 
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
@@ -570,8 +593,6 @@ def _polmak_ls5_pgnlmc(reduce=False):
     assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
     if change_mask.ndim == 2:
         change_mask = change_mask[..., np.newaxis]
-    if reduce:
-        print("Reduce has been DISABLED")
 
     return t1, t2, change_mask
 
@@ -806,7 +827,7 @@ def _debug_print_bands(arr_print, chans_print= None):
     # Print all channels if no list is provided
     if chans_print is None:
         chans_print = range(0, arr_print.shape[2])
-    
+    print("Printing bands...")
     # Print
     for i_chan in chans_print:
         print(np.min(arr_print[:,:,i_chan]), 
@@ -982,7 +1003,11 @@ def fetch(name, patch_size=100, **kwargs):
                               shapes (1, h, w, ?)
             channels - tuple (c_x, c_y), number of channels for domains x and y
     """
-    x_im, y_im, target_cm = DATASETS[name](prepare_data[name])
+    # Check if CONFIC contains parameters for loading the data
+    if "load_options" in kwargs:
+        x_im, y_im, target_cm = DATASETS[name](kwargs["load_options"])
+    else:
+        x_im, y_im, target_cm = DATASETS[name](prepare_data[name])
     if not tf.test.is_gpu_available():
         dataset = [
             tf.image.central_crop(tensor, 0.1) for tensor in [x_im, y_im, target_cm]
