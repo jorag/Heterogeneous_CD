@@ -539,18 +539,20 @@ def _polmak_ls5_pgnlmc(load_options=None):
     """ Test LS5-S2 QGIS aligned data. """
     from skimage import data, io, filters
     if not isinstance(load_options, dict):
-        load_options = dict()
-        load_options["norm_type"] = "_clip"
-        load_options["debug"] = False
+        load_options = _default_log_options(load_options)
     
     # Polmak data
     im = io.imread("data/Polmak/collocate_LS5_PGNLM_C_19-2-64.tif")
     changemap = io.imread("data/Polmak/ls5-pgnlmC-collocate-changemap.tif")
 
-    print("15 January: Test LS5-PGNLM-C, load options, log-transform collocate.")
+    print("18 January: Test LS5-PGNLM-C, SHIFT load options, log-transform collocate.")
     
     t1 = np.array(im[:, :, 11:18]) 
     t2 = np.array(im[:, :, 0:5])
+
+    # Shift image
+    if load_options["row_shift"] or ["col_shift"]:
+        t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
 
     # Take loagrithm of intensity data (or is it amplitude input?)
     t2[:,:,0:4] = np.log(t2[:,:,0:4])
@@ -832,6 +834,66 @@ def _debug_print_bands(arr_print, chans_print= None):
     for i_chan in chans_print:
         print(np.min(arr_print[:,:,i_chan]), 
         np.mean(arr_print[:,:,i_chan]), np.max(arr_print[:,:,i_chan]))
+
+
+def _shift_im(t1, t2, changemap, load_options):
+    """
+        Shift images related to each other in row and colum.
+
+        Only handles total shifts of even number of pixels.
+        
+    """
+    
+    if load_options["debug"]:
+        print("Shifting images...")
+    
+    if load_options["col_shift"] != 0:
+        col_half = int(np.ceil(np.abs(load_options["col_shift"])/2) )
+        col_v = int(2*col_half)
+        changemap = changemap[:, col_half:-col_half, :]
+        if load_options["col_shift"] > 0:
+            if load_options["debug"]:
+                print("COLUMN: Cropping ", col_v , " pixels from END of t1 and BEGINING of t2.")
+            t1 = np.array(t1[:, :-col_v, :]) 
+            t2 = np.array(t2[:, col_v:, :])      
+        else:
+            if load_options["debug"]:
+                print("COLUMN: Cropping ", col_v , " pixels from BEGINING of t1 and END of t2.")
+            t1 = np.array(t1[:, col_v:, :]) 
+            t2 = np.array(t2[:, :-col_v, :])
+
+    if load_options["row_shift"] != 0:
+        row_half = int(np.ceil(np.abs(load_options["row_shift"])/2))
+        row_v = int(2*row_half)
+        changemap = changemap[row_half:-row_half, :, :]
+        if load_options["row_shift"] > 0:
+            if load_options["debug"]:
+                print("ROW: Cropping ", row_v , " pixels from END of t1 and BEGINING of t2.")
+            t1 = np.array(t1[:-row_v, :, :]) 
+            t2 = np.array(t2[row_v:, :,  :])
+        else:      
+            if load_options["debug"]:
+                print("ROW: Cropping ", row_v , " pixels from BEGINING of t1 and END of t2.")
+            t1 = np.array(t1[:-row_v, :, :]) 
+            t2 = np.array(t2[row_v:, :,  :])
+
+    return t1, t2, changemap
+
+
+def _default_log_options(input_options=None):
+    """
+        Set default load options. 
+        
+        TODO: Different standard settings with input_options argument?
+    """
+
+    load_options = dict()
+    load_options["norm_type"] = "_clip"
+    load_options["debug"] = False
+    load_options["row_shift"] = int(0)
+    load_options["col_shift"] = int(0)
+
+    return load_options
 
 
 def _training_data_generator(x, y, p, patch_size):

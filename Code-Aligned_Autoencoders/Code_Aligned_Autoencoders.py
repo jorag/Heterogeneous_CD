@@ -300,7 +300,7 @@ if __name__ == "__main__":
     "Polmak-LS5-S2-warp", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
     "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked", "Polmak-Pal-RS2_010817-collocate"]
     
-    process_list = [ "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C"] #["Polmak-LS5-S2"] #["Polmak-Pal-RS2_010817-collocate"]
+    process_list = [ "Polmak-LS5-PGNLM_C"] #["Polmak-LS5-S2"] #["Polmak-Pal-RS2_010817-collocate"]
     #DATASET = "Polmak-LS5-S2-NDVI" 
     for DATASET in process_list:
         print(DATASET)
@@ -312,10 +312,11 @@ if __name__ == "__main__":
             load_options["norm_type"] = "_clip_norm"
             suffix += load_options["norm_type"]
             load_options["debug"] = True
+            load_options["row_shift"] = int(0)
+            load_options["col_shift"] = int(8)
+            # Add load_options to CONFIG dict
             CONFIG["load_options"] = load_options
-
         
-        #CONFIG["channel_y"] = [3, 2, 1]
         if DATASET in ["Polmak-LS5-S2_ONLY_align"]:
             from filtering import decorated_median_filter, decorated_gaussian_filter
             CONFIG["final_filter"] = decorated_median_filter("z_median_filtered_diff")
@@ -338,6 +339,13 @@ if __name__ == "__main__":
             CONFIG["channel_y"] = [0, 1, 2] # C11, C22, C33
         if DATASET in ["Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]:
             CONFIG["channel_y"] = [7, 1, 2] # Red, C22, C33
+
+        if "load_options" in CONFIG and (load_options["row_shift"] or ["col_shift"]):
+            suffix += "_shift_"
+            if load_options["row_shift"]:
+                suffix += "row" + str(load_options["row_shift"])
+            if load_options["col_shift"]:
+                suffix += "col" + str(load_options["col_shift"])
 
         # Check if suffix should be added 
         CONFIG["logdir"] = f"logs/{DATASET}/" + datetime.now().strftime("%Y%m%d-%H%M%S") + suffix
