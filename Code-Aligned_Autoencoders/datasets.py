@@ -10,6 +10,7 @@ import numpy as np
 import tensorflow as tf
 from scipy.io import loadmat, savemat
 from change_priors import eval_prior, remove_borders, image_in_patches
+from skimage import data, io, filters
 
 
 def load_prior(name, expected_hw=None):
@@ -162,183 +163,212 @@ def _texas(clip=True):
     return t1, t2, change_mask
 
 
-def _polmak_ls5_s2_snap_collocate(reduce=False):
-    """ Load California dataset from .mat """
-    #import libtiff
-    #from libtiff import TIFF
-    from skimage import data, io, filters
-    mat = loadmat("data/California/UiT_HCD_California_2017.mat")
+def _polmak_ls5_s2_snap_collocate(load_options=None):
+    """ LS5-S2 collocate data. """
+    print("Test LS5-S2 SNAP collocate data.")
+    if not isinstance(load_options, dict):
+        load_options = _default_load_options(load_options)
 
+    # Use full scene, or zoom in on AOI?
+    if load_options["reduce"]:
+        print("Using reduced image.")
+        t1 = io.imread("data/Polmak/LS5-collocate-ls5-s2-reduce.tif")
+        t2 = io.imread("data/Polmak/S2-collocate-ls5-s2-reduce.tif")
+        changemap = io.imread("data/Polmak/ls5-s2-collocate-changemap-reduce.tif")
+        # Remove lat and lon bands
+        t1, t2 = np.array(t1[:, :, :-2]), np.array(t2[:, :, :-2])
+    else:
+        im = io.imread("data/Polmak/collocate_260717S2_030705LS5_v3.tif")
+        changemap = io.imread("data/Polmak/ls5-s2-collocate-changemap.tif")
+        #print(im.shape)
+        #print(changemap.shape) # chans = change map, lat, long
+        t1 = np.array(im[:, :, 10:17]) # np.array(im[:,:,10:17]) - correct size
+        t2 = np.array(im[:, :, 0:10])
+
+    # Shift image?
+    if load_options["row_shift"] !=0 or load_options["col_shift"] !=0:
+        t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
+
+    if load_options["debug"]:
+        _debug_print_bands(t1); _debug_print_bands(t2)
     
-    print("3 December: Test normalised Polmak data with dummy change mask.")
-    # Calefornia data
-    #t1 = tf.convert_to_tensor(mat["t1_L8_clipped"], dtype=tf.float32)
-    #t2 = tf.convert_to_tensor(mat["logt2_clipped"], dtype=tf.float32)
-    #change_mask = tf.convert_to_tensor(mat["ROI"], dtype=tf.bool)
-    #print(tf.reduce_max(t1),  tf.reduce_min(t1))
-    #print(tf.reduce_max(t2),  tf.reduce_min(t2))
-    #t1 = _clip(t1)
-    #t2 = _clip(t2)
-    #print(t1.shape)
-    #print(t2.shape)
-    #print(change_mask.shape)
+    # Normalise to -1 to 1 range
+    if load_options["norm_type"] in ["_clip", "clip", "_clip_norm"]:
+        t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
+        t1, t2 = _clip(t1), _clip(t2)
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+    else:
+        t1 = _norm01(t1, norm_type='band')
+        t1 = 2*t1 -1
+        t2 = _norm01(t2, norm_type='band')
+        t2 = 2*t2 -1
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
 
-    # Polmak data
-    im = io.imread("data/Polmak/collocate_260717S2_030705LS5_v3.tif")
-    changemap = io.imread("data/Polmak/ls5-s2-collocate-changemap.tif")
-    print(im.shape)
-    print(changemap.shape) # chans = change map, lat, long
-    
-    t1 = np.array(im[:, :, 10:17]) # np.array(im[:,:,10:17]) - correct size
-    t2 = np.array(im[:, :, 0:10])
-
-    # Normalise to -1 to 1 range (for channels)
-    t1 = _norm01(t1, norm_type='band')
-    t1 = 2*t1 -1
-    t2 = _norm01(t2, norm_type='band')
-    t2 = 2*t2 -1
-
-    print(np.min(t1), np.max(t1))
-    print(np.min(t2), np.max(t2))
+    # Convert to tensors
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
-    #change_mask = np.eye(t1.shape[0], t1.shape[1])
-    #change_mask = tf.convert_to_tensor(change_mask, dtype=tf.bool)
     change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-    print(tf.reduce_max(t1),  tf.reduce_min(t1))
-    print(tf.reduce_max(t2),  tf.reduce_min(t2))
-    print(t1.shape)
-    print(t2.shape)
-    print(change_mask.shape)
-    #change_mask = tf.convert_to_tensor(np.ones(mat["ROI"].shape), dtype=tf.bool)
+    
+    if load_options["debug"]:
+        print(t1.shape)
+        print(t2.shape)
+        print(change_mask.shape)
+
     assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
     if change_mask.ndim == 2:
         change_mask = change_mask[..., np.newaxis]
-    if reduce:
-        print("Reduce has been DISABLED")
-        #reduction_ratios = (4, 4)
-        #new_dims = list(map(lambda a, b: a // b, change_mask.shape, reduction_ratios))
-        #t1 = tf.cast(tf.image.resize(t1, new_dims, antialias=True), dtype=tf.float32)
-        #t2 = tf.cast(tf.image.resize(t2, new_dims, antialias=True), dtype=tf.float32)
-        #change_mask = tf.cast(
-        #    tf.image.resize(tf.cast(change_mask, tf.uint8), new_dims, antialias=True),
-        #    tf.bool,
-        #)
 
     return t1, t2, change_mask
 
 
-def _polmak_ls5_s2_warp_align(reduce=False):
+def _polmak_ls5_s2_warp_align(load_options=None):
     """ Test LS5-S2 QGIS warp-aligned data. """
-    from skimage import data, io, filters
+    print("Test LS5-S2 QGIS warp-aligned data.")
+    if not isinstance(load_options, dict):
+        load_options = _default_load_options(load_options)
 
-    # Polmak data
-    im = io.imread("data/Polmak/ls5-s2-qgis-warp-align.tif")
-    changemap = io.imread("data/Polmak/ls5-s2-warp-align-changemap.tif")
-    print(im.shape)
-    print(changemap.shape) # chans = change map, lat, long
-    print("16 December: Test LS5-S2 QGIS warp-aligned data.")
+    # Use full scene, or zoom in on AOI?
+    if load_options["reduce"]:
+        print("Using reduced image.")
+        t1 = io.imread("data/Polmak/LS5-warp-align-ls5-s2-reduce.tif")
+        t2 = io.imread("data/Polmak/S2-warp-align-ls5-s2-reduce.tif")
+        changemap = io.imread("data/Polmak/ls5-s2-warp-align-changemap-reduce.tif")
+        # Remove lat and lon bands
+        t1, t2 = np.array(t1[:, :, :-2]), np.array(t2[:, :, :-2])
+    else:
+        im = io.imread("data/Polmak/ls5-s2-qgis-warp-align.tif")
+        changemap = io.imread("data/Polmak/ls5-s2-warp-align-changemap.tif")
+        t1 = np.array(im[:, :, 10:17]) # np.array(im[:,:,10:17]) - correct size
+        t2 = np.array(im[:, :, 0:10])
+
+    # Shift image?
+    if load_options["row_shift"] !=0 or load_options["col_shift"] !=0:
+        t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
+
+    if load_options["debug"]:
+        _debug_print_bands(t1); _debug_print_bands(t2)
     
-    t1 = np.array(im[:, :, 10:17]) # np.array(im[:,:,10:17]) - correct size
-    t2 = np.array(im[:, :, 0:10])
+    # Normalise to -1 to 1 range
+    if load_options["norm_type"] in ["_clip", "clip", "_clip_norm"]:
+        t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
+        t1, t2 = _clip(t1), _clip(t2)
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+    else:
+        t1 = _norm01(t1, norm_type='band')
+        t1 = 2*t1 -1
+        t2 = _norm01(t2, norm_type='band')
+        t2 = 2*t2 -1
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
 
-    # Normalise to -1 to 1 range (for channels)
-    t1 = _norm01(t1, norm_type='band')
-    t1 = 2*t1 -1
-    t2 = _norm01(t2, norm_type='band')
-    t2 = 2*t2 -1
-
-    print(np.min(t1), np.max(t1))
-    print(np.min(t2), np.max(t2))
+    # Convert to tensors
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
-
     change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-    print(tf.reduce_max(t1),  tf.reduce_min(t1))
-    print(tf.reduce_max(t2),  tf.reduce_min(t2))
-    print(t1.shape)
-    print(t2.shape)
-    print(change_mask.shape)
+    
+    if load_options["debug"]:
+        print(t1.shape)
+        print(t2.shape)
+        print(change_mask.shape)
 
     assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
     if change_mask.ndim == 2:
         change_mask = change_mask[..., np.newaxis]
-    if reduce:
-        print("Reduce has been DISABLED")
 
     return t1, t2, change_mask
 
 
-def _polmak_ls5_s2(reduce=False):
-    """ Test LS5-S2 QGIS aligned data. """
-    from skimage import data, io, filters
+def _polmak_ls5_s2(load_options=None):
+    """ Test LS5-S2, QGIS aligned data. """
+    print("Test LS5-S2 QGIS aligned data, no warp.")
+    if not isinstance(load_options, dict):
+        load_options = _default_load_options(load_options)
 
+    # Use full scene, or zoom in on AOI?
+    if load_options["reduce"]:
+        print("Using reduced image.")
+        t1 = io.imread("data/Polmak/LS5-align-ls5-s2-reduce.tif")
+        t2 = io.imread("data/Polmak/S2-align-ls5-s2-reduce.tif")
+        changemap = io.imread("data/Polmak/ls5-s2-align-changemap-reduce.tif")
+        # Remove lat and lon bands
+        t1, t2 = np.array(t1[:, :, :-2]), np.array(t2[:, :, :-2])
+    else:
+        im = io.imread("data/Polmak/ls5-s2-qgis-align.tif")
+        changemap = io.imread("data/Polmak/ls5-s2-align-changemap.tif")
+        t1 = np.array(im[:, :, 10:17])
+        t2 = np.array(im[:, :, 0:10])
 
-    # Polmak data
-    im = io.imread("data/Polmak/ls5-s2-qgis-align.tif")
-    changemap = io.imread("data/Polmak/ls5-s2-align-changemap.tif")
-    print(im.shape)
-    print(changemap.shape) # chans = change map, lat, long
-    print("13 January: Test CLIP normalised LS5-S2 QGIS aligned data, no warp.")
+    # Shift image?
+    #t1 = np.array(im[:, :-2, 10:17]) # np.array(im[:,:,10:17]) - correct size
+    #t2 = np.array(im[:, 2:, 0:10])
+    #changemap = changemap[:,1:-1,:]
+    if load_options["row_shift"] !=0 or load_options["col_shift"] !=0:
+        t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
+
+    if load_options["debug"]:
+        _debug_print_bands(t1); _debug_print_bands(t2)
     
-    #t1 = np.array(im[:, :, 10:17]) 
-    #t2 = np.array(im[:, :, 0:10])
-    t1 = np.array(im[:, :-2, 10:17]) # np.array(im[:,:,10:17]) - correct size
-    t2 = np.array(im[:, 2:, 0:10])
-    changemap = changemap[:,1:-1,:]
+    # Normalise to -1 to 1 range
+    if load_options["norm_type"] in ["_clip", "clip", "_clip_norm"]:
+        t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
+        t1, t2 = _clip(t1), _clip(t2)
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+    else:
+        t1 = _norm01(t1, norm_type='band')
+        t1 = 2*t1 -1
+        t2 = _norm01(t2, norm_type='band')
+        t2 = 2*t2 -1
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
 
-    print("Bands t1 - before normalisation")
-    _debug_print_bands(t1)
-    print("Bands t2 - before normalisation")
-    _debug_print_bands(t2)
-
-    # Normalise to -1 to 1 range (for channels)
-    t1 = np.array(t1, dtype=np.single)
-    t2 = np.array(t2, dtype=np.single)
-    t1, t2 = _clip(t1), _clip(t2)
-    #t1 = _norm01(t1, norm_type='band')
-    #t1 = 2*t1 -1
-    #t2 = _norm01(t2, norm_type='band')
-    #t2 = 2*t2 -1
-
-    print("Bands t1 - after normalisation")
-    _debug_print_bands(t1)
-    print("Bands t2 - after normalisation")
-    _debug_print_bands(t2)
-
+    # Convert to tensors
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
-
     change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-
-    print(t1.shape)
-    print(t2.shape)
-    print(change_mask.shape)
+    
+    if load_options["debug"]:
+        print(t1.shape)
+        print(t2.shape)
+        print(change_mask.shape)
 
     assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
     if change_mask.ndim == 2:
         change_mask = change_mask[..., np.newaxis]
-    if reduce:
-        print("Reduce has been DISABLED")
 
     return t1, t2, change_mask
 
 
-def _polmak_ls5_s2_ndvi(reduce=False):
-    """ Test LS5-S2 QGIS aligned data. """
-    from skimage import data, io, filters
+def _polmak_ls5_s2_ndvi(load_options=None):
+    """ Test LS5-S2 NDVI, QGIS aligned data. """
+    print("Test LS5-S2 NDVI (QGIS aligned data, no warp).")
+    if not isinstance(load_options, dict):
+        load_options = _default_load_options(load_options)
 
+    # Use full scene, or zoom in on AOI?
+    if load_options["reduce"]:
+        print("Using reduced image.")
+        t1 = io.imread("data/Polmak/LS5-align-ls5-s2-reduce.tif")
+        t2 = io.imread("data/Polmak/S2-align-ls5-s2-reduce.tif")
+        changemap = io.imread("data/Polmak/ls5-s2-align-changemap-reduce.tif")
+        # Remove lat and lon bands
+        t1, t2 = np.array(t1[:, :, :-2]), np.array(t2[:, :, :-2])
+    else:
+        im = io.imread("data/Polmak/ls5-s2-qgis-align.tif")
+        changemap = io.imread("data/Polmak/ls5-s2-align-changemap.tif")
+        t1 = np.array(im[:, :, 10:17])
+        t2 = np.array(im[:, :, 0:10])
 
-    # Polmak data
-    im = io.imread("data/Polmak/ls5-s2-qgis-align.tif")
-    changemap = io.imread("data/Polmak/ls5-s2-align-changemap.tif")
-    print("6 January: Test LS5-S2 NDVI (QGIS aligned data, no warp).")
+    # Shift image?
+    #t1 = np.array(im[:, :-2, 10:17]) # np.array(im[:,:,10:17]) - correct size
+    #t2 = np.array(im[:, 2:, 0:10])
+    #changemap = changemap[:,1:-1,:]
+    if load_options["row_shift"] !=0 or load_options["col_shift"] !=0:
+        t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
     
-
-    t1 = np.array(im[:, :-2, 10:17]) #t1 = np.array(im[:, :, 10:17]) 
-    t2 = np.array(im[:, 2:, 0:10]) #t2 = np.array(im[:, :, 0:10])
-    changemap = changemap[:,1:-1,:]
-
     # Calculate NDVI
     t1 = (t1[:,:, 3]-t1[:,:, 0])/(t1[:,:, 3]+t1[:,:, 0])
     t2 = (t2[:,:, 6]-t2[:,:, 2])/(t2[:,:, 6]+t2[:,:, 2])
@@ -349,168 +379,16 @@ def _polmak_ls5_s2_ndvi(reduce=False):
     t1 = t1[..., np.newaxis]
     t2 = t2[..., np.newaxis]
 
-    # Normalise to -1 to 1 range (for channels)
-    t1 = _norm01(t1, norm_type='band')
-    t1 = 2*t1 -1
-    t2 = _norm01(t2, norm_type='band')
-    t2 = 2*t2 -1
-
-    print(np.min(t1), np.max(t1))
-    print(np.min(t2), np.max(t2))
-    t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
-    t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
-
-    change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-    print(tf.reduce_max(t1),  tf.reduce_min(t1))
-    print(tf.reduce_max(t2),  tf.reduce_min(t2))
-    print(t1.shape)
-    print(t2.shape)
-    print(change_mask.shape)
-
-    assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
-    if change_mask.ndim == 2:
-        change_mask = change_mask[..., np.newaxis]
-    if reduce:
-        print("Reduce has been DISABLED")
-
-    return t1, t2, change_mask
-
-
-def _polmak_a2_s2_snap_collocate(reduce=False):
-    """ Load Polmak AVNIR-2 - Sentinel-2 dataset. SNAP collocate."""
-    from skimage import data, io, filters
+    if load_options["debug"]:
+        _debug_print_bands(t1); _debug_print_bands(t2)
     
-    print("15 January: Test AVNIR-2 - S2 Polmak _clip-norm, SNAP collocate data.")
-
-    # Polmak data
-    im = io.imread("data/Polmak/collocate_avnir2_s2_bandreduce.tif")
-    changemap = io.imread("data/Polmak/a2-s2-collocate-changemap.tif")
-    print(im.shape)
-    print(changemap.shape)
-    
-    t1 = np.array(im[:,:,12:16]) 
-    t2 = np.array(im[:,:,0:10])
-
-    # Normalise to -1 to 1 range (for channels)
-    t1 = np.array(t1, dtype=np.single)
-    t2 = np.array(t2, dtype=np.single)
-    t1, t2 = _clip(t1), _clip(t2)
-    #t1 = _norm01(t1, norm_type='band')
-    #t1 = 2*t1 -1
-    #t2 = _norm01(t2, norm_type='band')
-    #t2 = 2*t2 -1
-
-    # Debug, for printing values
-    _debug_print_bands(t1)
-    _debug_print_bands(t2)
-
-    t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
-    t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
-
-    change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-
-    print(t1.shape)
-    print(t2.shape)
-    print(change_mask.shape)
-
-    assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
-    if change_mask.ndim == 2:
-        change_mask = change_mask[..., np.newaxis]
-    if reduce:
-        print("Reduce has been DISABLED")
-
-    return t1, t2, change_mask
-
-
-
-def _polmak_a2_s2(reduce=False):
-    """ Load Polmak AVNIR-2 - Sentinel-2 dataset. """
-    from skimage import data, io, filters
-    
-    print("15 January: Test _clip-norm a2-s2-qgis-warp-align.")
-
-    # Polmak data
-    im = io.imread("data/Polmak/a2-s2-qgis-warp-align.tif")
-    changemap = io.imread("data/Polmak/a2-s2-warp-align-changemap.tif")
-    print(im.shape)
-    print(changemap.shape) # chans = change map, lat, long
-    
-    t1 = np.array(im[:,:,0:4]) 
-    t2 = np.array(im[:,:,6:16])
-
-    # Debug, for printing values
-    _debug_print_bands(t1)
-    _debug_print_bands(t2)
-
-    # Normalise to -1 to 1 range (for channels)
-    t1 = np.array(t1, dtype=np.single)
-    t2 = np.array(t2, dtype=np.single)
-    t1, t2 = _clip(t1), _clip(t2)
-    #t1 = _norm01(t1, norm_type='band')
-    #t1 = 2*t1 -1
-    #t2 = _norm01(t2, norm_type='band')
-    #t2 = 2*t2 -1
-
-    # Debug, for printing values
-    _debug_print_bands(t1)
-    _debug_print_bands(t2)
-
-    t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
-    t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
-
-    change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-
-    print(t1.shape)
-    print(t2.shape)
-    print(change_mask.shape)
-
-    assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
-    if change_mask.ndim == 2:
-        change_mask = change_mask[..., np.newaxis]
-    if reduce:
-        print("Reduce has been DISABLED")
-
-    return t1, t2, change_mask
-
-
-def _polmak_ls5_pgnlma(load_options=None):
-    """ Test LS5-S2 QGIS aligned data. """
-    from skimage import data, io, filters
-
-    if not isinstance(load_options, dict):
-        load_options = dict()
-        load_options["norm_type"] = "_clip"
-        load_options["debug"] = False
-
-    # Polmak data
-    im = io.imread("data/Polmak/collocate_LS5_PGNLM_A_19-2-64.tif")
-    changemap = io.imread("data/Polmak/ls5-pgnlmA-collocate-changemap.tif")
-
-    print("15 January: Test LS5-PGNLM-A, LOAD OPTIONS, log-transform collocate.")
-    
-    t1 = np.array(im[:, :, 11:18]) 
-    t2 = np.array(im[:, :, 0:5])
-    # Take loagrithm of intensity data (or is it amplitude input?)
-    t2[:,:,0:4] = np.log(t2[:,:,0:4])
-
-    if load_options["norm_type"] in ["_clip", "clip"]:
-        print("Clipping....")
-        # Ensure minimum is zero
-        t2[:,:,0:4] = _norm01(t2[:,:,0:4], norm_type='global') 
-        t2_temp = _norm01(t2, norm_type='band')
-        t2[:,:,4] = t2_temp[:,:,4]
-        if load_options["debug"]:
-            _debug_print_bands(t1); _debug_print_bands(t2)
-        # Normalise to -1 to 1 range (for channels)
-        t1 = np.array(t1, dtype=np.single)
-        t2 = np.array(t2, dtype=np.single)
+    # Normalise to -1 to 1 range
+    if load_options["norm_type"] in ["_clip", "clip", "_clip_norm"]:
+        t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
         t1, t2 = _clip(t1), _clip(t2)
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
     else:
-        if load_options["debug"]:
-            _debug_print_bands(t1); _debug_print_bands(t2)
-        # Normalise to -1 to 1 range (for channels)
         t1 = _norm01(t1, norm_type='band')
         t1 = 2*t1 -1
         t2 = _norm01(t2, norm_type='band')
@@ -518,15 +396,15 @@ def _polmak_ls5_pgnlma(load_options=None):
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
 
+    # Convert to tensors
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
-
     change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-    print(tf.reduce_max(t1),  tf.reduce_min(t1))
-    print(tf.reduce_max(t2),  tf.reduce_min(t2))
-    print(t1.shape)
-    print(t2.shape)
-    print(change_mask.shape)
+    
+    if load_options["debug"]:
+        print(t1.shape)
+        print(t2.shape)
+        print(change_mask.shape)
 
     assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
     if change_mask.ndim == 2:
@@ -535,30 +413,151 @@ def _polmak_ls5_pgnlma(load_options=None):
     return t1, t2, change_mask
 
 
-def _polmak_ls5_pgnlmc(load_options=None):
-    """ Test LS5-S2 QGIS aligned data. """
-    from skimage import data, io, filters
+def _polmak_a2_s2_snap_collocate(load_options=None):
+    """ Load Polmak AVNIR-2 - Sentinel-2 dataset. SNAP collocate."""
+    print("Test AVNIR-2 - S2 Polmak, SNAP collocate data.")
     if not isinstance(load_options, dict):
-        load_options = _default_log_options(load_options)
+        load_options = _default_load_options(load_options)
     
-    # Polmak data
-    im = io.imread("data/Polmak/collocate_LS5_PGNLM_C_19-2-64.tif")
-    changemap = io.imread("data/Polmak/ls5-pgnlmC-collocate-changemap.tif")
+    # Use full scene, or zoom in on AOI?
+    if load_options["reduce"]:
+        print("Using reduced image.")
+        t1 = io.imread("data/Polmak/A2-collocate-a2-s2-reduce.tif")
+        t2 = io.imread("data/Polmak/S2-collocate-a2-s2-reduce.tif")
+        changemap = io.imread("data/Polmak/a2-s2-collocate-changemap-reduce.tif")
+        # Remove lat and lon bands
+        t1, t2 = np.array(t1[:, :, :-2]), np.array(t2[:, :, :-2])
+    else:
+        im = io.imread("data/Polmak/collocate_avnir2_s2_bandreduce.tif")
+        changemap = io.imread("data/Polmak/a2-s2-collocate-changemap.tif")
+        t1 = np.array(im[:,:,12:16]) 
+        t2 = np.array(im[:,:,0:10])
 
-    print("18 January: Test LS5-PGNLM-C, SHIFT load options, log-transform collocate.")
+    # Shift image?
+    if load_options["row_shift"] !=0 or load_options["col_shift"] !=0:
+        t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
     
-    t1 = np.array(im[:, :, 11:18]) 
-    t2 = np.array(im[:, :, 0:5])
+    if load_options["debug"]:
+        _debug_print_bands(t1); _debug_print_bands(t2)
 
-    # Shift image
-    if load_options["row_shift"] or ["col_shift"]:
+    # Normalise to -1 to 1 range
+    if load_options["norm_type"] in ["_clip", "clip", "_clip_norm"]:
+        t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
+        t1, t2 = _clip(t1), _clip(t2)
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+    else:
+        t1 = _norm01(t1, norm_type='band')
+        t1 = 2*t1 -1
+        t2 = _norm01(t2, norm_type='band')
+        t2 = 2*t2 -1
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+
+    # Convert to tensors
+    t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
+    t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
+    change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
+    
+    if load_options["debug"]:
+        print(t1.shape)
+        print(t2.shape)
+        print(change_mask.shape)
+
+    assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
+    if change_mask.ndim == 2:
+        change_mask = change_mask[..., np.newaxis]
+
+    return t1, t2, change_mask
+
+
+
+def _polmak_a2_s2(load_options=None):
+    """ Load Polmak AVNIR-2 - Sentinel-2 dataset. """
+    print("Test AVNIR-2 - Sentinel-2 qgis-warp-align.")
+    if not isinstance(load_options, dict):
+        load_options = _default_load_options(load_options)
+
+    # Use full scene, or zoom in on AOI?
+    if load_options["reduce"]:
+        print("Using reduced image.")
+        t1 = io.imread("data/Polmak/A2-warp-align-a2-s2-reduce.tif")
+        t2 = io.imread("data/Polmak/S2-warp-align-a2-s2-reduce.tif")
+        changemap = io.imread("data/Polmak/a2-s2-warp-align-changemap-reduce.tif")
+        # Remove lat and lon bands
+        t1, t2 = np.array(t1[:, :, :-2]), np.array(t2[:, :, :-2])
+    else:
+        im = io.imread("data/Polmak/a2-s2-qgis-warp-align.tif")
+        changemap = io.imread("data/Polmak/a2-s2-warp-align-changemap.tif")
+        t1 = np.array(im[:,:,0:4]) 
+        t2 = np.array(im[:,:,6:16])
+
+    # Shift image?
+    if load_options["row_shift"] !=0 or load_options["col_shift"] !=0:
+        t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
+    
+    if load_options["debug"]:
+        _debug_print_bands(t1); _debug_print_bands(t2)
+
+    # Normalise to -1 to 1 range
+    if load_options["norm_type"] in ["_clip", "clip", "_clip_norm"]:
+        t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
+        t1, t2 = _clip(t1), _clip(t2)
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+    else:
+        t1 = _norm01(t1, norm_type='band')
+        t1 = 2*t1 -1
+        t2 = _norm01(t2, norm_type='band')
+        t2 = 2*t2 -1
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+
+    # Convert to tensors
+    t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
+    t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
+    change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
+    
+    if load_options["debug"]:
+        print(t1.shape)
+        print(t2.shape)
+        print(change_mask.shape)
+
+    assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
+    if change_mask.ndim == 2:
+        change_mask = change_mask[..., np.newaxis]
+
+    return t1, t2, change_mask
+
+
+def _polmak_ls5_pgnlma(load_options=None):
+    """ Test LS5-S2 LS5-PGNLM-A. """
+    print("Test LS5-PGNLM-A, log-transform, collocate.")
+    if not isinstance(load_options, dict):
+        load_options = _default_load_options(load_options)
+
+     # Use full scene, or zoom in on AOI?
+    if load_options["reduce"]:
+        print("Using reduced image.")
+        t1 = io.imread("data/Polmak/LS5-collocate-ls5-pgnlmA-reduce.tif")
+        t2 = io.imread("data/Polmak/PGNLM5feat-collocate-ls5-pgnlmA-reduce.tif")
+        changemap = io.imread("data/Polmak/ls5-pgnlmA-collocate-changemap-reduce.tif")
+        # Remove lat and lon bands
+        t1, t2 = np.array(t1[:, :, :-2]), np.array(t2[:, :, :-2])
+    else:
+        im = io.imread("data/Polmak/collocate_LS5_PGNLM_A_19-2-64.tif")
+        changemap = io.imread("data/Polmak/ls5-pgnlmA-collocate-changemap.tif")
+        t1 = np.array(im[:, :, 11:18]) 
+        t2 = np.array(im[:, :, 0:5])
+    
+    # Shift image?
+    if load_options["row_shift"] !=0 or load_options["col_shift"] !=0:
         t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
 
     # Take loagrithm of intensity data (or is it amplitude input?)
     t2[:,:,0:4] = np.log(t2[:,:,0:4])
 
     if load_options["norm_type"] in ["_clip", "clip", "_clip_norm"]:
-        print("Clipping....")
         # Ensure minimum is zero
         t2[:,:,0:4] = _norm01(t2[:,:,0:4], norm_type='global') 
         t2_temp = _norm01(t2, norm_type='band')
@@ -570,6 +569,7 @@ def _polmak_ls5_pgnlmc(load_options=None):
         #t2 = np.array(t2, dtype=np.single)
         t1, t2 = _clip(t1), _clip(t2)
         if load_options["debug"]:
+            print("_clip normalisation.")
             _debug_print_bands(t1); _debug_print_bands(t2)
     else:
         if load_options["debug"]:
@@ -582,15 +582,15 @@ def _polmak_ls5_pgnlmc(load_options=None):
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
 
+    # Convert to tensors
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
-
     change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-    print(tf.reduce_max(t1),  tf.reduce_min(t1))
-    print(tf.reduce_max(t2),  tf.reduce_min(t2))
-    print(t1.shape)
-    print(t2.shape)
-    print(change_mask.shape)
+    
+    if load_options["debug"]:
+        print(t1.shape)
+        print(t2.shape)
+        print(change_mask.shape)
 
     assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
     if change_mask.ndim == 2:
@@ -599,118 +599,226 @@ def _polmak_ls5_pgnlmc(load_options=None):
     return t1, t2, change_mask
 
 
-def _polmak_ls5_pgnlmc_stacked(reduce=False):
-    """ Test LS5-S2 QGIS aligned data. """
-    from skimage import data, io, filters
-
-    # Polmak data
-    im = io.imread("data/Polmak/collocate_LS5_PGNLM_C_19-2-64.tif")
-    changemap = io.imread("data/Polmak/ls5-pgnlmC-collocate-changemap.tif")
-    print(im.shape)
-    print(changemap.shape) # chans = change map, lat, long
-    print("12 January: Test LS5-PGNLM-C+S2, stacked, SAR log-transform collocate.")
+def _polmak_ls5_pgnlmc(load_options=None):
+    """ Test LS5-S2 LS5-PGNLM-C. """
+    print("Test LS5-PGNLM-C, log-transform, collocate.")
+    if not isinstance(load_options, dict):
+        load_options = _default_load_options(load_options)
     
-    t1 = np.array(im[:, :, 11:18]) 
-    t2 = np.array(im[:, :, 0:9])
+    # Use full scene, or zoom in on AOI?
+    if load_options["reduce"]:
+        print("Using reduced image.")
+        t1 = io.imread("data/Polmak/LS5-collocate-ls5-pgnlmC-reduce.tif")
+        t2 = io.imread("data/Polmak/PGNLM5feat-collocate-ls5-pgnlmC-reduce.tif")
+        changemap = io.imread("data/Polmak/ls5-pgnlmC-collocate-changemap-reduce.tif")
+        # Remove lat and lon bands 
+        t1, t2 = np.array(t1[:, :, :-2]), np.array(t2[:, :, :-2])
+    else:
+        im = io.imread("data/Polmak/collocate_LS5_PGNLM_C_19-2-64.tif")
+        changemap = io.imread("data/Polmak/ls5-pgnlmC-collocate-changemap.tif")
+        t1 = np.array(im[:, :, 11:18]) 
+        t2 = np.array(im[:, :, 0:5])
+
+    # Shift image?
+    if load_options["row_shift"] !=0 or load_options["col_shift"] !=0:
+        t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
 
     # Take loagrithm of intensity data (or is it amplitude input?)
     t2[:,:,0:4] = np.log(t2[:,:,0:4])
 
-    # Debug, for printing values
-    _debug_print_bands(t2)
+    if load_options["norm_type"] in ["_clip", "clip", "_clip_norm"]:
+        # Ensure minimum is zero
+        t2[:,:,0:4] = _norm01(t2[:,:,0:4], norm_type='global') 
+        t2_temp = _norm01(t2, norm_type='band')
+        t2[:,:,4] = t2_temp[:,:,4]
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+        # Normalise to -1 to 1 range (for channels)
+        t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
+        #t2 = np.array(t2, dtype=np.single)
+        t1, t2 = _clip(t1), _clip(t2)
+        if load_options["debug"]:
+            print("_clip normalisation.")
+            _debug_print_bands(t1); _debug_print_bands(t2)
+    else:
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+        # Normalise to -1 to 1 range (for channels)
+        t1 = _norm01(t1, norm_type='band')
+        t1 = 2*t1 -1
+        t2 = _norm01(t2, norm_type='band')
+        t2 = 2*t2 -1
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
 
-    # Normalise to -1 to 1 range (for channels)
-    t1 = _norm01(t1, norm_type='band')
-    t1 = 2*t1 -1
-    t2 = _norm01(t2, norm_type='band')
-    t2 = 2*t2 -1
-
-    # Debug, for printing values
-    _debug_print_bands(t2)
-
+    # Convert to tensors
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
-
     change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-    print(tf.reduce_max(t1),  tf.reduce_min(t1))
-    print(tf.reduce_max(t2),  tf.reduce_min(t2))
-    print(t1.shape)
-    print(t2.shape)
-    print(change_mask.shape)
+    
+    if load_options["debug"]:
+        print(t1.shape)
+        print(t2.shape)
+        print(change_mask.shape)
 
     assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
     if change_mask.ndim == 2:
         change_mask = change_mask[..., np.newaxis]
-    if reduce:
-        print("Reduce has been DISABLED")
 
     return t1, t2, change_mask
 
 
-def _polmak_ls5_pgnlma_stacked(reduce=False):
-    """ Test LS5-S2 QGIS aligned data, stacked SAR and OPT. """
-    from skimage import data, io, filters
+def _polmak_ls5_pgnlma_stacked(load_options=None):
+    """ Test LS5-S2 LS5-S2+PGNLM-A (stacked). """
+    print("Test LS5-S2+PGNLM-A (stacked), log-transform, collocate.")
+    if not isinstance(load_options, dict):
+        load_options = _default_load_options(load_options)
 
-    # Polmak data
+     # Use full scene, or zoom in on AOI?
+    if load_options["reduce"]:
+        print("No reduced image for PGNLM-A stacked, using full image.")
+   
     im = io.imread("data/Polmak/collocate_LS5_PGNLM_A_19-2-64.tif")
     changemap = io.imread("data/Polmak/ls5-pgnlmA-collocate-changemap.tif")
-    print(im.shape)
-    print(changemap.shape) # chans = change map, lat, long
-    print("11 January: Test LS5-PGNLM-A+S2, stacked, SAR log-transform collocate.")
-    
     t1 = np.array(im[:, :, 11:18]) 
     t2 = np.array(im[:, :, 0:9])
 
+    # Shift image?
+    if load_options["row_shift"] !=0 or load_options["col_shift"] !=0:
+        t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
+   
     # Take loagrithm of intensity data (or is it amplitude input?)
     t2[:,:,0:4] = np.log(t2[:,:,0:4])
 
-    # Debug, for printing values
-    _debug_print_bands(t2)
+    if load_options["norm_type"] in ["_clip", "clip", "_clip_norm"]:
+        # Ensure minimum is zero
+        t2[:,:,0:4] = _norm01(t2[:,:,0:4], norm_type='global') 
+        t2_temp = _norm01(t2, norm_type='band')
+        t2[:,:,4] = t2_temp[:,:,4]
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+        # Normalise to -1 to 1 range (for channels)
+        t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
+        #t2 = np.array(t2, dtype=np.single)
+        t1, t2 = _clip(t1), _clip(t2)
+        if load_options["debug"]:
+            print("_clip normalisation.")
+            _debug_print_bands(t1); _debug_print_bands(t2)
+    else:
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+        # Normalise to -1 to 1 range (for channels)
+        t1 = _norm01(t1, norm_type='band')
+        t1 = 2*t1 -1
+        t2 = _norm01(t2, norm_type='band')
+        t2 = 2*t2 -1
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
 
-    # Normalise to -1 to 1 range (for channels)
-    t1 = _norm01(t1, norm_type='band')
-    t1 = 2*t1 -1
-    t2 = _norm01(t2, norm_type='band')
-    t2 = 2*t2 -1
-
-    # Debug, for printing values
-    _debug_print_bands(t2)
-
+    # Convert to tensors
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
-
     change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-    print(tf.reduce_max(t1),  tf.reduce_min(t1))
-    print(tf.reduce_max(t2),  tf.reduce_min(t2))
-    print(t1.shape)
-    print(t2.shape)
-    print(change_mask.shape)
+    
+    if load_options["debug"]:
+        print(t1.shape)
+        print(t2.shape)
+        print(change_mask.shape)
 
     assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
     if change_mask.ndim == 2:
         change_mask = change_mask[..., np.newaxis]
-    if reduce:
-        print("Reduce has been DISABLED")
 
     return t1, t2, change_mask
 
 
-def _polmak_pal_rs2_010817(reduce=False):
+def _polmak_ls5_pgnlmc_stacked(load_options=None):
+    """ Test LS5-S2 LS5-S2+PGNLM-C (stacked). """
+    print("Test LS5-S2+PGNLM-C (stacked), log-transform, collocate.")
+    if not isinstance(load_options, dict):
+        load_options = _default_load_options(load_options)
+
+     # Use full scene, or zoom in on AOI?
+    if load_options["reduce"]:
+        print("No reduced image for PGNLM-C stacked, using full image.")
+    
+    im = io.imread("data/Polmak/collocate_LS5_PGNLM_C_19-2-64.tif")
+    changemap = io.imread("data/Polmak/ls5-pgnlmC-collocate-changemap.tif")    
+    t1 = np.array(im[:, :, 11:18]) 
+    t2 = np.array(im[:, :, 0:9])
+
+    # Shift image?
+    if load_options["row_shift"] !=0 or load_options["col_shift"] !=0:
+        t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
+
+    # Take loagrithm of intensity data (or is it amplitude input?)
+    t2[:,:,0:4] = np.log(t2[:,:,0:4])
+
+    if load_options["norm_type"] in ["_clip", "clip", "_clip_norm"]:
+        # Ensure minimum is zero
+        t2[:,:,0:4] = _norm01(t2[:,:,0:4], norm_type='global') 
+        t2_temp = _norm01(t2, norm_type='band')
+        t2[:,:,4] = t2_temp[:,:,4]
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+        # Normalise to -1 to 1 range (for channels)
+        t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
+        t1, t2 = _clip(t1), _clip(t2)
+        if load_options["debug"]:
+            print("_clip normalisation.")
+            _debug_print_bands(t1); _debug_print_bands(t2)
+    else:
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+        # Normalise to -1 to 1 range (for channels)
+        t1 = _norm01(t1, norm_type='band')
+        t1 = 2*t1 -1
+        t2 = _norm01(t2, norm_type='band')
+        t2 = 2*t2 -1
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+
+    # Convert to tensors
+    t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
+    t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
+    change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
+    
+    if load_options["debug"]:
+        print(t1.shape)
+        print(t2.shape)
+        print(change_mask.shape)
+
+    assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
+    if change_mask.ndim == 2:
+        change_mask = change_mask[..., np.newaxis]
+
+    return t1, t2, change_mask
+
+
+def _polmak_pal_rs2_010817(load_options=None):
     """ Test PalSAR-RS2 data. """
-    from skimage import data, io, filters
+    print("Test PalSAR-RS2 data, channel-wise PalSAR negative value removal.")
+    if not isinstance(load_options, dict):
+        load_options = _default_load_options(load_options)
+     # Use full scene, or zoom in on AOI?
+    if load_options["reduce"]:
+        print("No reduced image for PalSAR-RS2 stacked, using full image.")
 
     # Polmak data
     im = io.imread("data/Polmak/subset_0_of_collocate_PalSAR_RS2-20170801.tif")
     changemap = io.imread("data/Polmak/pal-RS2_010817-collocate-changemap.tif")
-    print("13 January: Test PalSAR-RS2 data, CLIP, channel-wise PalSAR negative value removal.")
-    
     t1 = np.array(im[:, :, 7:9]) 
     t2 = np.array(im[:, :, 0:4])
 
-    print('t1 - input values - PalSAR bands')
-    _debug_print_bands(t1)
-    print('t2 - input values - RADARSAT-2 bands')
-    _debug_print_bands(t2)
+    # Shift image?
+    if load_options["row_shift"] !=0 or load_options["col_shift"] !=0:
+        t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
+
+    if load_options["debug"]:
+        print('t1 - input values - PalSAR bands')
+        _debug_print_bands(t1)
+        print('t2 - input values - RADARSAT-2 bands')
+        _debug_print_bands(t2)
 
     # Take loagrithm of intensity data 
     # To fix negative intensity values in PalSAR
@@ -721,39 +829,47 @@ def _polmak_pal_rs2_010817(reduce=False):
     t2= np.log(t2)
 
     # Debug, for printing values
-    print('t1 - log - PalSAR bands')
-    _debug_print_bands(t1)
-    print('t2 - log - RADARSAT-2 bands')
-    _debug_print_bands(t2)
+    if load_options["debug"]:
+        print('t1 - log - PalSAR bands')
+        _debug_print_bands(t1)
+        print('t2 - log - RADARSAT-2 bands')
+        _debug_print_bands(t2)
 
-    # Normalise to -1 to 1 range (for channels)
-    t1 = np.array(t1, dtype=np.single)
-    t2 = np.array(t2, dtype=np.single)
-    t1, t2 = _clip(t1), _clip(t2)
-    #t1 = _norm01(t1, norm_type='band')
-    #t1 = 2*t1 -1
-    #t2 = _norm01(t2, norm_type='band')
-    #t2 = 2*t2 -1
+    if load_options["norm_type"] in ["_clip", "clip", "_clip_norm"]:
+        # Normalise to -1 to 1 range (for channels)
+        t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
+        t1, t2 = _clip(t1), _clip(t2)
+        if load_options["debug"]:
+            print("_clip normalisation.")
+            print('t1 - normalised -  PalSAR bands')
+            _debug_print_bands(t1) 
+            print('t2 - normalised -  RADARSAT-2 bands')
+            _debug_print_bands(t2)
+    else:
+        # Normalise to -1 to 1 range (for channels)
+        t1 = _norm01(t1, norm_type='band')
+        t1 = 2*t1 -1
+        t2 = _norm01(t2, norm_type='band')
+        t2 = 2*t2 -1
+        if load_options["debug"]:
+            print('t1 - normalised -  PalSAR bands')
+            _debug_print_bands(t1)
+            print('t2 - normalised -  RADARSAT-2 bands')
+            _debug_print_bands(t2)
 
-    # Debug, for printing values
-    print('t1 - normalised -  PalSAR bands')
-    _debug_print_bands(t1)
-    print('t2 - normalised -  RADARSAT-2 bands')
-    _debug_print_bands(t2)
-
+    # Convert to tensors
     t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
     t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
-
     change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
-    print(t1.shape)
-    print(t2.shape)
-    print(change_mask.shape)
+    
+    if load_options["debug"]:
+        print(t1.shape)
+        print(t2.shape)
+        print(change_mask.shape)
 
     assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
     if change_mask.ndim == 2:
         change_mask = change_mask[..., np.newaxis]
-    if reduce:
-        print("Reduce has been DISABLED")
 
     return t1, t2, change_mask
 
@@ -837,11 +953,9 @@ def _debug_print_bands(arr_print, chans_print= None):
 
 
 def _shift_im(t1, t2, changemap, load_options):
-    """
-        Shift images related to each other in row and colum.
+    """Shift images related to each other in row and colum.
 
-        Only handles total shifts of even number of pixels.
-        
+        Only handles total shifts of even number of pixels.   
     """
     
     if load_options["debug"]:
@@ -874,24 +988,25 @@ def _shift_im(t1, t2, changemap, load_options):
         else:      
             if load_options["debug"]:
                 print("ROW: Cropping ", row_v , " pixels from BEGINING of t1 and END of t2.")
-            t1 = np.array(t1[:-row_v, :, :]) 
-            t2 = np.array(t2[row_v:, :,  :])
+            t1 = np.array(t1[row_v:, :, :]) 
+            t2 = np.array(t2[:-row_v:, :,  :])
 
     return t1, t2, changemap
 
 
-def _default_log_options(input_options=None):
+def _default_load_options(input_options=None):
     """
         Set default load options. 
         
         TODO: Different standard settings with input_options argument?
     """
-
+    print("Using default load options!")
     load_options = dict()
     load_options["norm_type"] = "_clip"
     load_options["debug"] = False
     load_options["row_shift"] = int(0)
     load_options["col_shift"] = int(0)
+    load_options["reduce"] = False
 
     return load_options
 
