@@ -180,9 +180,7 @@ def _polmak_ls5_s2_snap_collocate(load_options=None):
     else:
         im = io.imread("data/Polmak/collocate_260717S2_030705LS5_v3.tif")
         changemap = io.imread("data/Polmak/ls5-s2-collocate-changemap.tif")
-        #print(im.shape)
-        #print(changemap.shape) # chans = change map, lat, long
-        t1 = np.array(im[:, :, 10:17]) # np.array(im[:,:,10:17]) - correct size
+        t1 = np.array(im[:, :, 10:17])
         t2 = np.array(im[:, :, 0:10])
 
     # Shift image?
@@ -240,7 +238,7 @@ def _polmak_ls5_s2_warp_align(load_options=None):
     else:
         im = io.imread("data/Polmak/ls5-s2-qgis-warp-align.tif")
         changemap = io.imread("data/Polmak/ls5-s2-warp-align-changemap.tif")
-        t1 = np.array(im[:, :, 10:17]) # np.array(im[:,:,10:17]) - correct size
+        t1 = np.array(im[:, :, 10:17])
         t2 = np.array(im[:, :, 0:10])
 
     # Shift image?
@@ -302,9 +300,6 @@ def _polmak_ls5_s2(load_options=None):
         t2 = np.array(im[:, :, 0:10])
 
     # Shift image?
-    #t1 = np.array(im[:, :-2, 10:17]) # np.array(im[:,:,10:17]) - correct size
-    #t2 = np.array(im[:, 2:, 0:10])
-    #changemap = changemap[:,1:-1,:]
     if load_options["row_shift"] !=0 or load_options["col_shift"] !=0:
         t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
 
@@ -363,9 +358,6 @@ def _polmak_ls5_s2_ndvi(load_options=None):
         t2 = np.array(im[:, :, 0:10])
 
     # Shift image?
-    #t1 = np.array(im[:, :-2, 10:17]) # np.array(im[:,:,10:17]) - correct size
-    #t2 = np.array(im[:, 2:, 0:10])
-    #changemap = changemap[:,1:-1,:]
     if load_options["row_shift"] !=0 or load_options["col_shift"] !=0:
         t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
     
@@ -566,7 +558,6 @@ def _polmak_ls5_pgnlma(load_options=None):
             _debug_print_bands(t1); _debug_print_bands(t2)
         # Normalise to -1 to 1 range (for channels)
         t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
-        #t2 = np.array(t2, dtype=np.single)
         t1, t2 = _clip(t1), _clip(t2)
         if load_options["debug"]:
             print("_clip normalisation.")
@@ -635,7 +626,6 @@ def _polmak_ls5_pgnlmc(load_options=None):
             _debug_print_bands(t1); _debug_print_bands(t2)
         # Normalise to -1 to 1 range (for channels)
         t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
-        #t2 = np.array(t2, dtype=np.single)
         t1, t2 = _clip(t1), _clip(t2)
         if load_options["debug"]:
             print("_clip normalisation.")
@@ -699,7 +689,6 @@ def _polmak_ls5_pgnlma_stacked(load_options=None):
             _debug_print_bands(t1); _debug_print_bands(t2)
         # Normalise to -1 to 1 range (for channels)
         t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
-        #t2 = np.array(t2, dtype=np.single)
         t1, t2 = _clip(t1), _clip(t2)
         if load_options["debug"]:
             print("_clip normalisation.")
