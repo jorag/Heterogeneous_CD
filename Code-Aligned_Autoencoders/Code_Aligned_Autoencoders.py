@@ -139,7 +139,7 @@ class Kern_AceNet(ChangeDetector):
             retval = [x_hat, y_hat, x_dot, y_dot, x_tilde, y_tilde, zx_t_zy]
 
         else:
-            x_code, y_code = self.enc_x(x, name="x_code"), self.enc_y(y, name="y_code")
+            x_code, y_code = self.enc_x(x, name="code_x"), self.enc_y(y, name="code_y")
             x_tilde, y_tilde = (
                 self.dec_x(x_code, name="x_tilde"),
                 self.dec_y(y_code, name="y_tilde"),
@@ -300,25 +300,29 @@ if __name__ == "__main__":
     "Polmak-LS5-S2-warp", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
     "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked", "Polmak-Pal-RS2_010817-collocate"]
     
-    process_list = ["Polmak-LS5-S2-collocate"] # ["Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"] #["Polmak-LS5-S2"] #["Polmak-Pal-RS2_010817-collocate"]
-    #DATASET = "Polmak-LS5-S2-NDVI" 
+    #process_list = ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", "Polmak-LS5-S2-NDVI", "Polmak-LS5-S2-warp", "Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C",] # ["Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"] #["Polmak-LS5-S2"] #["Polmak-Pal-RS2_010817-collocate"]
+    process_list = polmak_list
     for DATASET in process_list:
         print(DATASET)
+        if DATASET in ["Polmak-Pal-RS2_010817-collocate", "Polmak-LS5-S2-NDVI"]:
+            print("Skipping dataset!")
+            continue
         CONFIG = get_config_kACE(DATASET)
         suffix = "" # to add to log output name
         if DATASET in polmak_list:
             print("Usinging Polmak processing dict")
             load_options = dict()
-            load_options["norm_type"] = "_clip_norm"
+            load_options["norm_type"] = "_norm01" # "_clip_norm" # 
             suffix += load_options["norm_type"]
             load_options["debug"] = True
             load_options["row_shift"] = int(0)
             load_options["col_shift"] = int(0)
-            load_options["reduce"] = True
+            load_options["reduce"] = False
         else:
             load_options = None
         
         if DATASET in ["Polmak-LS5-S2_ONLY_align"]:
+            print("Not using AUC!")
             from filtering import decorated_median_filter, decorated_gaussian_filter
             CONFIG["final_filter"] = decorated_median_filter("z_median_filtered_diff")
         if DATASET in ["Polmak-Pal-RS2_010817-collocate"]:
@@ -329,8 +333,10 @@ if __name__ == "__main__":
         if DATASET in ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", "Polmak-LS5-S2-warp", 
             "Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]:
             CONFIG["channel_x"] = [0, 1, 2] # LS5 RGB
-        if DATASET in ["Polmak-A2-S2", "Polmak-A2-S2-collocate"]:
+        elif DATASET in ["Polmak-A2-S2", "Polmak-A2-S2-collocate"]:
             CONFIG["channel_x"] = [2, 1, 0] # ALOS AVNIR
+        elif DATASET in ["Polmak-LS5-S2-NDVI"]:
+            CONFIG["channel_x"] = [0] # NDVI
         
         # Set y-channels
         if DATASET in ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", "Polmak-LS5-S2-warp", 
@@ -341,13 +347,17 @@ if __name__ == "__main__":
         if DATASET in ["Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]:
             CONFIG["channel_y"] = [7, 1, 2] # Red, C22, C33
 
-        if load_options is not None and (load_options["row_shift"] != 0
-         or load_options["col_shift"] != 0):
-            suffix += "_shift_"
+        # Set dataset shift
+        if DATASET in ["Polmak-LS5-S2", "Polmak-LS5-S2-NDVI", "Polmak-LS5-S2-warp"]:
+            load_options["col_shift"] = int(2)
+            suffix += "_shift_col" + str(load_options["col_shift"])
+        elif DATASET in ["Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]:
+            load_options["col_shift"] = int(6)
+            suffix += "_shift_col" + str(load_options["col_shift"])
+
+        if load_options is not None and load_options["row_shift"] != 0:
             if load_options["row_shift"]:
-                suffix += "row" + str(load_options["row_shift"])
-            if load_options["col_shift"]:
-                suffix += "col" + str(load_options["col_shift"])
+                suffix += "_shift_row" + str(load_options["row_shift"])
 
         # Check if suffix should be added 
         if load_options is not None and load_options["reduce"]:
