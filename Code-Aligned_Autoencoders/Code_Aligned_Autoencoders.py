@@ -133,9 +133,13 @@ class Kern_AceNet(ChangeDetector):
                 self._dec_y(y_code, training),
             )
             # zx_t_zy = ztz(image_in_patches(x_code, 20), image_in_patches(y_code, 20))
-            zx_t_zy = ztz(
-                tf.image.central_crop(x_code, 0.2), tf.image.central_crop(y_code, 0.2)
-            )
+            # Crop 20 % of pixels from the centre of the patch
+            # Note that this is intended for a patch size of 100 * 100 pixels
+            #zx_t_zy = ztz(
+            #    tf.image.central_crop(x_code, 0.2), tf.image.central_crop(y_code, 0.2)
+            #)
+            # Align code of entire patches - will cause memory issues if patches are too large
+            zx_t_zy = ztz(x_code, y_code)
             retval = [x_hat, y_hat, x_dot, y_dot, x_tilde, y_tilde, zx_t_zy]
 
         else:
@@ -165,10 +169,13 @@ class Kern_AceNet(ChangeDetector):
             x_hat, y_hat, x_dot, y_dot, x_tilde, y_tilde, ztz = self(
                 [x, y], training=True
             )
-
-            Kern = 1.0 - Degree_matrix(
-                tf.image.central_crop(x, 0.2), tf.image.central_crop(y, 0.2)
-            )
+            # Crop 20 % of pixels from the centre of the patch
+            # Note that this is intended for a patch size of 100 * 100 pixels
+            #Kern = 1.0 - Degree_matrix(
+            #    tf.image.central_crop(x, 0.2), tf.image.central_crop(y, 0.2)
+            #)
+            # Align code of entire patches - will cause memory issues if patches are too large
+            Kern = 1.0 - Degree_matrix(x, y)
             kernels_loss = self.kernels_lambda * self.loss_object(Kern, ztz)
             l2_loss_k = sum(self._enc_x.losses) + sum(self._enc_y.losses)
             targets_k = (
@@ -300,19 +307,28 @@ if __name__ == "__main__":
     "Polmak-LS5-S2-warp", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
     "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked", "Polmak-Pal-RS2_010817-collocate"]
     
-    #process_list = ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", "Polmak-LS5-S2-NDVI", "Polmak-LS5-S2-warp", "Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C",] # ["Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"] #["Polmak-LS5-S2"] #["Polmak-Pal-RS2_010817-collocate"]
-    process_list = polmak_list
+    process_list = ["Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C"] #["Polmak-LS5-S2"] #["Polmak-Pal-RS2_010817-collocate"]
+    #process_list = polmak_list
     for DATASET in process_list:
         print(DATASET)
         if DATASET in ["Polmak-Pal-RS2_010817-collocate", "Polmak-LS5-S2-NDVI"]:
             print("Skipping dataset!")
             continue
         CONFIG = get_config_kACE(DATASET)
+        
         suffix = "" # to add to log output name
+        
+        CONFIG["patch_size"] = 20
+        CONFIG["batch_size"] = 25
+        CONFIG["batches"] = 100
+        print("Setting patch size to: ", CONFIG["patch_size"])
+        print("Setting batch size to: ", CONFIG["batch_size"])
+        suffix += "_patch"+str(CONFIG["patch_size"])+"_batch"+str(CONFIG["batch_size"])
+        
         if DATASET in polmak_list:
             print("Usinging Polmak processing dict")
             load_options = dict()
-            load_options["norm_type"] = "_norm01" # "_clip_norm" # 
+            load_options["norm_type"] = "_clip_norm" # "_norm01" # 
             suffix += load_options["norm_type"]
             load_options["debug"] = True
             load_options["row_shift"] = int(0)
