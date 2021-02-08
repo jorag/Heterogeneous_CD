@@ -307,8 +307,8 @@ if __name__ == "__main__":
     "Polmak-LS5-S2-warp", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
     "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked", "Polmak-Pal-RS2_010817-collocate"]
     
-    process_list = ["Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C"] #["Polmak-LS5-S2"] #["Polmak-Pal-RS2_010817-collocate"]
-    #process_list = polmak_list
+    #process_list = ["Polmak-LS5-S2"] # [ "Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C"] # ["Polmak-Pal-RS2_010817-collocate"]
+    process_list = polmak_list
     for DATASET in process_list:
         print(DATASET)
         if DATASET in ["Polmak-Pal-RS2_010817-collocate", "Polmak-LS5-S2-NDVI"]:
@@ -316,19 +316,20 @@ if __name__ == "__main__":
             continue
         CONFIG = get_config_kACE(DATASET)
         
-        suffix = "" # to add to log output name
-        
+        suffix = "" # "_sigma25pct" # to add to log output name
+        print(suffix)
         CONFIG["patch_size"] = 20
         CONFIG["batch_size"] = 25
-        CONFIG["batches"] = 100
+        CONFIG["batches"] = 200
         print("Setting patch size to: ", CONFIG["patch_size"])
         print("Setting batch size to: ", CONFIG["batch_size"])
         suffix += "_patch"+str(CONFIG["patch_size"])+"_batch"+str(CONFIG["batch_size"])
+        suffix += "_"+str(CONFIG["batches"])+"_batches"
         
         if DATASET in polmak_list:
             print("Usinging Polmak processing dict")
             load_options = dict()
-            load_options["norm_type"] = "_clip_norm" # "_norm01" # 
+            load_options["norm_type"] = "_norm01" # "_clip_norm" #  
             suffix += load_options["norm_type"]
             load_options["debug"] = True
             load_options["row_shift"] = int(0)
