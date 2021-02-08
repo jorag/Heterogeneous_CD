@@ -134,23 +134,92 @@ if __name__ == "__main__":
     polmak_list = ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", 
     "Polmak-LS5-S2-warp", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
     "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]
-    process_list = ["Polmak-LS5-S2"] #["Polmak-Pal-RS2_010817-collocate"]
+    #process_list = ["Polmak-LS5-S2"] #["Polmak-Pal-RS2_010817-collocate"]
+    process_list = polmak_list
     for DATASET in process_list:
         CONFIG = get_config_kACE(DATASET)
+        suffix = ""
+        #if DATASET in polmak_list:
+        #    CONFIG["channel_y"] = [2, 1, 0]
+        #    if DATASET in ["Polmak-LS5-S2_ONLY_align"]:
+        #        from filtering import decorated_median_filter, decorated_gaussian_filter
+        #        CONFIG["final_filter"] = decorated_median_filter("z_median_filtered_diff")
+        #if DATASET in ["Polmak-Pal-RS2_010817-collocate"]:
+        #    CONFIG["channel_x"] = [0, 1]
+        #    CONFIG["channel_y"] = [0, 1, 3]
+        #if DATASET in ["Polmak-LS5-S2"]:
+        #    CONFIG["channel_x"] = [0, 1, 2]
+        #    CONFIG["channel_y"] = [2, 1, 0]
+        #else:
+        #    CONFIG = get_config_kACE(DATASET)
+        
+
+
         if DATASET in polmak_list:
-            CONFIG["channel_y"] = [2, 1, 0]
-            if DATASET in ["Polmak-LS5-S2_ONLY_align"]:
-                from filtering import decorated_median_filter, decorated_gaussian_filter
-                CONFIG["final_filter"] = decorated_median_filter("z_median_filtered_diff")
-        if DATASET in ["Polmak-Pal-RS2_010817-collocate"]:
-            CONFIG["channel_x"] = [0, 1]
-            CONFIG["channel_y"] = [0, 1, 3]
-        if DATASET in ["Polmak-LS5-S2"]:
-            CONFIG["channel_x"] = [0, 1, 2]
-            CONFIG["channel_y"] = [2, 1, 0]
+            print("Usinging Polmak processing dict")
+            load_options = dict()
+            load_options["norm_type"] = "_clip_norm" #  "_norm01" # 
+            suffix += load_options["norm_type"]
+            load_options["debug"] = True
+            load_options["row_shift"] = int(0)
+            load_options["col_shift"] = int(0)
+            load_options["reduce"] = True
         else:
-            CONFIG = get_config_kACE(DATASET)
+            load_options = None
+        
+        if DATASET in ["Polmak-LS5-S2_ONLY_align"]:
+            print("Not using AUC!")
+            from filtering import decorated_median_filter, decorated_gaussian_filter
+            CONFIG["final_filter"] = decorated_median_filter("z_median_filtered_diff")
+        if DATASET in ["Polmak-Pal-RS2_010817-collocate"]:
+            CONFIG["channel_x"] = [0]
+            CONFIG["channel_y"] = [0, 1, 3]
+        
+        # Set x-channels
+        if DATASET in ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", "Polmak-LS5-S2-warp", 
+            "Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]:
+            CONFIG["channel_x"] = [0, 1, 2] # LS5 RGB
+        elif DATASET in ["Polmak-A2-S2", "Polmak-A2-S2-collocate"]:
+            CONFIG["channel_x"] = [2, 1, 0] # ALOS AVNIR
+        elif DATASET in ["Polmak-LS5-S2-NDVI"]:
+            CONFIG["channel_x"] = [0] # NDVI
+        
+        # Set y-channels
+        if DATASET in ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", "Polmak-LS5-S2-warp", 
+            "Polmak-A2-S2", "Polmak-A2-S2-collocate"]:
+            CONFIG["channel_y"] = [2, 1, 0] # S2 RGB
+        if DATASET in ["Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]:
+            CONFIG["channel_y"] = [0, 1, 2] # C11, C22, C33
+        if DATASET in ["Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]:
+            CONFIG["channel_y"] = [7, 1, 2] # Red, C22, C33
+
+        # Set dataset shift
+        if DATASET in ["Polmak-LS5-S2", "Polmak-LS5-S2-NDVI", "Polmak-LS5-S2-warp"]:
+            load_options["col_shift"] = int(2)
+            suffix += "_shift_col" + str(load_options["col_shift"])
+        elif DATASET in ["Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]:
+            load_options["col_shift"] = int(6)
+            suffix += "_shift_col" + str(load_options["col_shift"])
+
+        if load_options is not None and load_options["row_shift"] != 0:
+            if load_options["row_shift"]:
+                suffix += "_shift_row" + str(load_options["row_shift"])
+
+        
         # Change
-        CONFIG["logdir"] = f"logs/{DATASET}/" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-alpha"
-        print("11 January - test alpha dataset: ", DATASET)
+        #CONFIG["logdir"] = f"logs/{DATASET}/" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-alpha"
+        #print("11 January - test alpha dataset: ", DATASET)
+        
+        # Check if suffix should be added 
+        if load_options is not None and load_options["reduce"]:
+            CONFIG["logdir"] = f"logs/reduce/{DATASET}/" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-alpha" + suffix
+        else:
+            CONFIG["logdir"] = f"logs/{DATASET}/" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-alpha"+ suffix
+
+        # Add load_options to CONFIG dict if it exists
+        if load_options is not None:
+            CONFIG["load_options"] = load_options
+
+
+
         test(DATASET, CONFIG)
