@@ -37,32 +37,6 @@ class ChangePrior:
                               logging of training and evaluation is set up at
                               'logdir/'
         """
-        #learning_rate = kwargs.get("learning_rate", 1e-5)
-        #lr_all = ExponentialDecay(
-        #    learning_rate, decay_steps=10000, decay_rate=0.96, staircase=True
-        #)
-        #self._optimizer_all = tf.keras.optimizers.Adam(lr_all)
-        #lr_k = ExponentialDecay(
-        #    learning_rate, decay_steps=10000, decay_rate=0.9, staircase=True
-        #)
-        #self._optimizer_k = tf.keras.optimizers.Adam(lr_k)
-        #self.clipnorm = kwargs.get("clipnorm", None)
-
-        # To keep a history for a specific training_metrics,
-        # add `self.metrics_history[name] = []` in subclass __init__
-        #self.train_metrics = {}
-        #self.difference_img_metrics = {"ACC_di": tf.keras.metrics.Accuracy()} #{"AUC": tf.keras.metrics.AUC()}
-        #self.change_map_metrics = {
-        #    "ACC": tf.keras.metrics.Accuracy(),
-        #    "cohens kappa": CohenKappa(num_classes=2),
-            # 'F1': tfa.metrics.F1Score(num_classes=2, average=None)
-        #}
-        #assert not set(self.difference_img_metrics) & set(self.change_map_metrics)
-        # If the metric dictionaries shares keys, the history will not work
-        #self.metrics_history = {
-        #    **{key: [] for key in self.change_map_metrics.keys()},
-        #    **{key: [] for key in self.difference_img_metrics.keys()},
-        #}
 
         self.timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         self.channels = {"x": kwargs.get("channel_x"), "y": kwargs.get("channel_y")}
@@ -130,7 +104,6 @@ def test(DATASET="Texas", CONFIG =None):
 
 
 if __name__ == "__main__":
-    #DATASET = "Polmak-LS5-PGNLM_C-stacked" 
     polmak_list = ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", 
     "Polmak-LS5-S2-warp", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
     "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]
@@ -139,21 +112,6 @@ if __name__ == "__main__":
     for DATASET in process_list:
         CONFIG = get_config_kACE(DATASET)
         suffix = ""
-        #if DATASET in polmak_list:
-        #    CONFIG["channel_y"] = [2, 1, 0]
-        #    if DATASET in ["Polmak-LS5-S2_ONLY_align"]:
-        #        from filtering import decorated_median_filter, decorated_gaussian_filter
-        #        CONFIG["final_filter"] = decorated_median_filter("z_median_filtered_diff")
-        #if DATASET in ["Polmak-Pal-RS2_010817-collocate"]:
-        #    CONFIG["channel_x"] = [0, 1]
-        #    CONFIG["channel_y"] = [0, 1, 3]
-        #if DATASET in ["Polmak-LS5-S2"]:
-        #    CONFIG["channel_x"] = [0, 1, 2]
-        #    CONFIG["channel_y"] = [2, 1, 0]
-        #else:
-        #    CONFIG = get_config_kACE(DATASET)
-        
-
 
         if DATASET in polmak_list:
             print("Usinging Polmak processing dict")
@@ -204,11 +162,6 @@ if __name__ == "__main__":
         if load_options is not None and load_options["row_shift"] != 0:
             if load_options["row_shift"]:
                 suffix += "_shift_row" + str(load_options["row_shift"])
-
-        
-        # Change
-        #CONFIG["logdir"] = f"logs/{DATASET}/" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-alpha"
-        #print("11 January - test alpha dataset: ", DATASET)
         
         # Check if suffix should be added 
         if load_options is not None and load_options["reduce"]:
