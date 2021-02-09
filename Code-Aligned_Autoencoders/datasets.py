@@ -197,9 +197,9 @@ def _polmak_ls5_s2_snap_collocate(load_options=None):
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
     else:
-        t1 = _norm01(t1, norm_type='band')
+        t1 = _norm01(t1, norm_type="band")
         t1 = 2*t1 -1
-        t2 = _norm01(t2, norm_type='band')
+        t2 = _norm01(t2, norm_type="band")
         t2 = 2*t2 -1
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
@@ -255,9 +255,9 @@ def _polmak_ls5_s2_warp_align(load_options=None):
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
     else:
-        t1 = _norm01(t1, norm_type='band')
+        t1 = _norm01(t1, norm_type="band")
         t1 = 2*t1 -1
-        t2 = _norm01(t2, norm_type='band')
+        t2 = _norm01(t2, norm_type="band")
         t2 = 2*t2 -1
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
@@ -313,9 +313,9 @@ def _polmak_ls5_s2(load_options=None):
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
     else:
-        t1 = _norm01(t1, norm_type='band')
+        t1 = _norm01(t1, norm_type="band")
         t1 = 2*t1 -1
-        t2 = _norm01(t2, norm_type='band')
+        t2 = _norm01(t2, norm_type="band")
         t2 = 2*t2 -1
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
@@ -381,9 +381,9 @@ def _polmak_ls5_s2_ndvi(load_options=None):
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
     else:
-        t1 = _norm01(t1, norm_type='band')
+        t1 = _norm01(t1, norm_type="band")
         t1 = 2*t1 -1
-        t2 = _norm01(t2, norm_type='band')
+        t2 = _norm01(t2, norm_type="band")
         t2 = 2*t2 -1
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
@@ -439,9 +439,9 @@ def _polmak_a2_s2_snap_collocate(load_options=None):
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
     else:
-        t1 = _norm01(t1, norm_type='band')
+        t1 = _norm01(t1, norm_type="band")
         t1 = 2*t1 -1
-        t2 = _norm01(t2, norm_type='band')
+        t2 = _norm01(t2, norm_type="band")
         t2 = 2*t2 -1
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
@@ -498,9 +498,9 @@ def _polmak_a2_s2(load_options=None):
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
     else:
-        t1 = _norm01(t1, norm_type='band')
+        t1 = _norm01(t1, norm_type="band")
         t1 = 2*t1 -1
-        t2 = _norm01(t2, norm_type='band')
+        t2 = _norm01(t2, norm_type="band")
         t2 = 2*t2 -1
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
@@ -566,9 +566,9 @@ def _polmak_ls5_pgnlma(load_options=None):
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
         # Normalise to -1 to 1 range (for channels)
-        t1 = _norm01(t1, norm_type='band')
+        t1 = _norm01(t1, norm_type="band")
         t1 = 2*t1 -1
-        t2 = _norm01(t2, norm_type='band')
+        t2 = _norm01(t2, norm_type="band")
         t2 = 2*t2 -1
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
@@ -634,9 +634,9 @@ def _polmak_ls5_pgnlmc(load_options=None):
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
         # Normalise to -1 to 1 range (for channels)
-        t1 = _norm01(t1, norm_type='band')
+        t1 = _norm01(t1, norm_type="band")
         t1 = 2*t1 -1
-        t2 = _norm01(t2, norm_type='band')
+        t2 = _norm01(t2, norm_type="band")
         t2 = 2*t2 -1
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
@@ -697,9 +697,9 @@ def _polmak_ls5_pgnlma_stacked(load_options=None):
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
         # Normalise to -1 to 1 range (for channels)
-        t1 = _norm01(t1, norm_type='band')
+        t1 = _norm01(t1, norm_type="band")
         t1 = 2*t1 -1
-        t2 = _norm01(t2, norm_type='band')
+        t2 = _norm01(t2, norm_type="band")
         t2 = 2*t2 -1
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
@@ -760,9 +760,9 @@ def _polmak_ls5_pgnlmc_stacked(load_options=None):
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
         # Normalise to -1 to 1 range (for channels)
-        t1 = _norm01(t1, norm_type='band')
+        t1 = _norm01(t1, norm_type="band")
         t1 = 2*t1 -1
-        t2 = _norm01(t2, norm_type='band')
+        t2 = _norm01(t2, norm_type="band")
         t2 = 2*t2 -1
         if load_options["debug"]:
             _debug_print_bands(t1); _debug_print_bands(t2)
@@ -836,9 +836,9 @@ def _polmak_pal_rs2_010817(load_options=None):
             _debug_print_bands(t2)
     else:
         # Normalise to -1 to 1 range (for channels)
-        t1 = _norm01(t1, norm_type='band')
+        t1 = _norm01(t1, norm_type="band")
         t1 = 2*t1 -1
-        t2 = _norm01(t2, norm_type='band')
+        t2 = _norm01(t2, norm_type="band")
         t2 = 2*t2 -1
         if load_options["debug"]:
             print('t1 - normalised -  PalSAR bands')
@@ -1169,11 +1169,12 @@ def fetch(name, patch_size=100, **kwargs):
                               shapes (1, h, w, ?)
             channels - tuple (c_x, c_y), number of channels for domains x and y
     """
-    # Check if CONFIC contains parameters for loading the data
+    # Check if CONFIG contains parameters for loading the data
     if "load_options" in kwargs:
         x_im, y_im, target_cm = DATASETS[name](kwargs["load_options"])
     else:
         x_im, y_im, target_cm = DATASETS[name](prepare_data[name])
+    
     if not tf.test.is_gpu_available():
         dataset = [
             tf.image.central_crop(tensor, 0.1) for tensor in [x_im, y_im, target_cm]
