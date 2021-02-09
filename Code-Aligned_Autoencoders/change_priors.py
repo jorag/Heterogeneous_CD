@@ -120,6 +120,30 @@ def affinity(x):
     return A
 
 
+def affinity_fixed_krnl(x, krnl_width):
+    """
+    Compute the affinity matrices of the patches of contained in a batch.
+    It first computes the distances between the datapoints within a patch.
+    Then it finds the suitable kernel width for each patch.
+    Finally, applies the RBF.
+        Input:
+            x - float, array of [batch_size, patch_size, patch_size, num_channels],
+                Batch of patches from data domain x.
+            krnl_width - kernel width, pre-calculated.
+        Output:
+            A - float, array of [batch_size, patch_size^2, patch_size^2], Affinity matrix
+    """
+    _, h, w, c = x.shape
+    x_1 = tf.expand_dims(tf.reshape(x, [-1, h * w, c]), 2)
+    x_2 = tf.expand_dims(tf.reshape(x, [-1, h * w, c]), 1)
+    A = tf.norm(x_1 - x_2, axis=-1)
+    #krnl_width = tf.math.top_k(A, k=A.shape[-1]).values
+    #krnl_width = tf.reduce_mean(input_tensor=krnl_width[:, :, (h * w) // 4], axis=1)
+    #krnl_width = tf.reshape(krnl_width, (-1, 1, 1))
+    A = tf.exp(-(tf.divide(A, krnl_width) ** 2))
+    return A
+
+
 def alpha(x, y):
     """
     Compute the alpha prior starting from corresponding patches of data organized
@@ -157,6 +181,27 @@ def Degree_matrix(x, y):
     """
     ax = affinity(x)
     ay = affinity(y)
+    D = tf.norm(tf.expand_dims(ax, 1) - tf.expand_dims(ay, 2), 2, -1)
+    D = (D - tf.reduce_min(D)) / (tf.reduce_max(D) - tf.reduce_min(D))
+    return D
+
+
+def Degree_matrix_fixed_krnl(x, y, krnl_width_x, krnl_width_y):
+    """
+    Compute the degree matrix starting from corresponding patches of data organized
+    in batches. It first computes the affinity matrices of the two batches and then
+    it computes the norm of the difference between the rows of Ax and the rows of Ay.
+    Then it is normalized.
+        Input:
+            x - float, array of [batch_size, patch_size, patch_size, num_channels_x],
+                Batch of patches from data domain x.
+            y - float, array of [batch_size, patch_size, patch_size, num_channels_y],
+                Batch of patches from data domain y.
+        Output:
+            D - float, array of [batch_size, patch_size^2, patch_size^2], Degree matrix
+    """
+    ax = affinity_fixed_krnl(x, krnl_width_x)
+    ay = affinity_fixed_krnl(y, krnl_width_y)
     D = tf.norm(tf.expand_dims(ax, 1) - tf.expand_dims(ay, 2), 2, -1)
     D = (D - tf.reduce_min(D)) / (tf.reduce_max(D) - tf.reduce_min(D))
     return D

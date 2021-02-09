@@ -8,7 +8,7 @@ import tensorflow as tf
 import datasets
 from change_detector import ChangeDetector
 from image_translation import ImageTranslationNetwork
-from change_priors import Degree_matrix, ztz, image_in_patches
+from change_priors import Degree_matrix, ztz, image_in_patches, Degree_matrix_fixed_krnl
 from config import get_config_kACE
 from decorators import image_to_tensorboard
 import numpy as np
@@ -21,7 +21,7 @@ class Kern_AceNet(ChangeDetector):
                 Input:
                     translation_spec - dict with keys 'enc_X', 'enc_Y', 'dec_X', 'dec_Y'.
                                        Values are passed as kwargs to the
-                                       respective ImageTranslationNetwork's
+                                       respective ImageTranslationNetworks
                     cycle_lambda=2 - float, loss weight
                     cross_lambda=1 - float, loss weight
                     l2_lambda=1e-3 - float, loss weight
@@ -46,6 +46,12 @@ class Kern_AceNet(ChangeDetector):
         self.last_losses = []
         self.patience = kwargs.get("patience", 10) + 1
         self.aps = kwargs.get("affinity_patch_size", 20)
+
+        self.krnl_width_x = 1.0 
+        self.krnl_width_y = 1.0
+
+        print("Kernel width x = ", self.krnl_width_x)
+        print("Kernel width y = ", self.krnl_width_y)
 
         # encoders of X and Y
         self._enc_x = ImageTranslationNetwork(
@@ -110,7 +116,7 @@ class Kern_AceNet(ChangeDetector):
     def early_stopping_criterion(self):
         self.last_losses = np.array(self.metrics_history["krnls"][-self.patience :])
         diffs = self.last_losses[:-1] - self.last_losses[-1]
-        going_donw = tf.reduce_all(diffs < self.min_impr)
+        going_down = tf.reduce_all(diffs < self.min_impr)
         going_down = False
         tf.print("kernels_loss", self.last_losses[-1])
         return going_down
@@ -174,8 +180,14 @@ class Kern_AceNet(ChangeDetector):
             #Kern = 1.0 - Degree_matrix(
             #    tf.image.central_crop(x, 0.2), tf.image.central_crop(y, 0.2)
             #)
-            # Align code of entire patches - will cause memory issues if patches are too large
-            Kern = 1.0 - Degree_matrix(x, y)
+            
+            ## Align code of entire patches - will cause memory issues if patches are too large
+            #Kern = 1.0 - Degree_matrix(x, y)
+
+            # Align code of entire patches using global kernel size 
+            # # - will cause memory issues if patches are too large
+            Kern = 1.0 - Degree_matrix_fixed_krnl(x, y, self.krnl_width_x, self.krnl_width_y)
+
             kernels_loss = self.kernels_lambda * self.loss_object(Kern, ztz)
             l2_loss_k = sum(self._enc_x.losses) + sum(self._enc_y.losses)
             targets_k = (
@@ -316,11 +328,11 @@ if __name__ == "__main__":
             continue
         CONFIG = get_config_kACE(DATASET)
         
-        suffix = "" # "_sigma25pct" # to add to log output name
+        suffix = "_kwx1_kwy1"  # "_kwx0p25_kwy0p25" # "_sigma25pct" # to add to log output name
         print(suffix)
         CONFIG["patch_size"] = 20
         CONFIG["batch_size"] = 25
-        CONFIG["batches"] = 200
+        CONFIG["batches"] = 100
         print("Setting patch size to: ", CONFIG["patch_size"])
         print("Setting batch size to: ", CONFIG["batch_size"])
         suffix += "_patch"+str(CONFIG["patch_size"])+"_batch"+str(CONFIG["batch_size"])
@@ -329,7 +341,7 @@ if __name__ == "__main__":
         if DATASET in polmak_list:
             print("Usinging Polmak processing dict")
             load_options = dict()
-            load_options["norm_type"] = "_norm01" # "_clip_norm" #  
+            load_options["norm_type"] = "_clip_norm" # "_norm01" # 
             suffix += load_options["norm_type"]
             load_options["debug"] = True
             load_options["row_shift"] = int(0)
@@ -378,9 +390,9 @@ if __name__ == "__main__":
 
         # Check if suffix should be added 
         if load_options is not None and load_options["reduce"]:
-            CONFIG["logdir"] = f"logs/reduce/{DATASET}/" + datetime.now().strftime("%Y%m%d-%H%M%S") + suffix
+            CONFIG["logdir"] = f"logs/reduce/{DATASET}/" + datetime.now().strftime("%Y%m%d-%H%M") + suffix
         else:
-            CONFIG["logdir"] = f"logs/{DATASET}/" + datetime.now().strftime("%Y%m%d-%H%M%S") + suffix
+            CONFIG["logdir"] = f"logs/{DATASET}/" + datetime.now().strftime("%Y%m%d-%H%M") + suffix
 
         # Add load_options to CONFIG dict if it exists
         if load_options is not None:
