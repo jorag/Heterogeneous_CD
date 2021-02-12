@@ -46,12 +46,25 @@ class Kern_AceNet(ChangeDetector):
         self.last_losses = []
         self.patience = kwargs.get("patience", 10) + 1
         self.aps = kwargs.get("affinity_patch_size", 20)
-
-        self.krnl_width_x = 1.0 
-        self.krnl_width_y = 1.0
-
+        # 
+        self.difference_basis = kwargs.get("difference_basis", "translated")
+        self.domain_diff_bw = kwargs.get("domain_diff_bw", tf.constant(3, dtype=tf.float32))
+        # Global kernel width
+        self.krnl_width_x = kwargs.get("krnl_width_x", None) 
+        self.krnl_width_y = kwargs.get("krnl_width_y", None) 
         print("Kernel width x = ", self.krnl_width_x)
         print("Kernel width y = ", self.krnl_width_y)
+        # Check how codes should be aligned
+        self.patch_size = kwargs.get("patch_size", 100)
+        if self.patch_size >= self.aps:
+            print("Using centre crop to align codes...")
+            self.centre_crop_frac = self.aps / self.patch_size
+            print("Patch size: ", self.patch_size, 
+                ", affinity patch size: ", self.aps, 
+                ", centre crop fraction: ", self.centre_crop_frac)
+            self.align_option = "centre_crop"
+        else:
+            self.align_option = "full"
 
         # encoders of X and Y
         self._enc_x = ImageTranslationNetwork(
@@ -139,13 +152,15 @@ class Kern_AceNet(ChangeDetector):
                 self._dec_y(y_code, training),
             )
             # zx_t_zy = ztz(image_in_patches(x_code, 20), image_in_patches(y_code, 20))
-            # Crop 20 % of pixels from the centre of the patch
-            # Note that this is intended for a patch size of 100 * 100 pixels
-            #zx_t_zy = ztz(
-            #    tf.image.central_crop(x_code, 0.2), tf.image.central_crop(y_code, 0.2)
-            #)
-            # Align code of entire patches - will cause memory issues if patches are too large
-            zx_t_zy = ztz(x_code, y_code)
+            if self.align_option in ["centre_crop", "center_crop"]:
+                # Crop X % of pixels from the centre of the patch
+                zx_t_zy = ztz(
+                    tf.image.central_crop(x_code, self.centre_crop_frac), 
+                    tf.image.central_crop(y_code, self.centre_crop_frac)
+                )
+            elif self.align_option in ["full", "no_crop"]:
+                # Align code of entire patches - will cause memory issues if patches are too large
+                zx_t_zy = ztz(x_code, y_code)
             retval = [x_hat, y_hat, x_dot, y_dot, x_tilde, y_tilde, zx_t_zy]
 
         else:
@@ -158,7 +173,11 @@ class Kern_AceNet(ChangeDetector):
                 self.dec_x(y_code, name="x_hat"),
                 self.dec_y(x_code, name="y_hat"),
             )
-            difference_img = self._difference_img(x_tilde, y_tilde, x_hat, y_hat)
+            # Check if translated images or original should be used as basis
+            if self.difference_basis in ["translated", "tilde"]:
+                difference_img = self._difference_img(x_tilde, y_tilde, x_hat, y_hat)
+            elif self.difference_basis in ["original"]:
+                difference_img = self._difference_img(x, y, x_hat, y_hat)
             retval = difference_img
 
         return retval
@@ -175,18 +194,24 @@ class Kern_AceNet(ChangeDetector):
             x_hat, y_hat, x_dot, y_dot, x_tilde, y_tilde, ztz = self(
                 [x, y], training=True
             )
-            # Crop 20 % of pixels from the centre of the patch
-            # Note that this is intended for a patch size of 100 * 100 pixels
-            #Kern = 1.0 - Degree_matrix(
-            #    tf.image.central_crop(x, 0.2), tf.image.central_crop(y, 0.2)
-            #)
-            
-            ## Align code of entire patches - will cause memory issues if patches are too large
-            #Kern = 1.0 - Degree_matrix(x, y)
-
-            # Align code of entire patches using global kernel size 
-            # # - will cause memory issues if patches are too large
-            Kern = 1.0 - Degree_matrix_fixed_krnl(x, y, self.krnl_width_x, self.krnl_width_y)
+            if self.align_option in ["centre_crop", "center_crop"]: 
+                # Crop X % of pixels from the centre of the patch
+                if self.krnl_width_x is None or self.krnl_width_y is None:
+                    Kern = 1.0 - Degree_matrix(
+                        tf.image.central_crop(x, self.centre_crop_frac), tf.image.central_crop(y, self.centre_crop_frac)
+                    )
+                elif self.krnl_width_x is not None or self.krnl_width_y is not None:
+                    Kern = 1.0 - Degree_matrix_fixed_krnl(
+                        tf.image.central_crop(x, self.centre_crop_frac), tf.image.central_crop(y, self.centre_crop_frac),
+                        self.krnl_width_x, self.krnl_width_y
+                    )
+            elif self.align_option in ["full", "no_crop"]:
+                # Align code of entire patches - will cause memory issues if patches are too large
+                if self.krnl_width_x is None or self.krnl_width_y is None:
+                    Kern = 1.0 - Degree_matrix(x, y)
+                elif self.krnl_width_x is not None or self.krnl_width_y is not None:
+                    # Use global kernel size 
+                    Kern = 1.0 - Degree_matrix_fixed_krnl(x, y, self.krnl_width_x, self.krnl_width_y)
 
             kernels_loss = self.kernels_lambda * self.loss_object(Kern, ztz)
             l2_loss_k = sum(self._enc_x.losses) + sum(self._enc_y.losses)
@@ -263,6 +288,12 @@ def test(DATASET="Texas", CONFIG=None):
     """
     if CONFIG is None:
         CONFIG = get_config_kACE(DATASET)
+    
+
+    # Save config parameters
+    with open(os.path.join(CONFIG["logdir"], "config.txt"), "w+") as f:
+        print(CONFIG, file=f)
+    
     print(f"Loading {DATASET} data")
     x_im, y_im, EVALUATE, (C_X, C_Y) = datasets.fetch(DATASET, **CONFIG)
     if tf.test.is_gpu_available() and not CONFIG["debug"]:
@@ -311,6 +342,7 @@ def test(DATASET="Texas", CONFIG=None):
     speed = (epoch, training_time, timestamp)
     del cd
     gc.collect()
+
     return performance, speed
 
 
@@ -319,8 +351,10 @@ if __name__ == "__main__":
     "Polmak-LS5-S2-warp", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
     "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked", "Polmak-Pal-RS2_010817-collocate"]
     
-    #process_list = ["Polmak-LS5-S2"] # [ "Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C"] # ["Polmak-Pal-RS2_010817-collocate"]
-    process_list = polmak_list
+    process_list = ["Polmak-LS5-S2"] # [ "Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C"] # ["Polmak-Pal-RS2_010817-collocate"]
+    #process_list = polmak_list
+    #process_list = ["Polmak-LS5-S2", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
+    #"Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]
     for DATASET in process_list:
         print(DATASET)
         if DATASET in ["Polmak-Pal-RS2_010817-collocate", "Polmak-LS5-S2-NDVI"]:
@@ -328,15 +362,28 @@ if __name__ == "__main__":
             continue
         CONFIG = get_config_kACE(DATASET)
         
-        suffix = "_kwx1_kwy1"  # "_kwx0p25_kwy0p25" # "_sigma25pct" # to add to log output name
+        # Basis for difference image
+        CONFIG["difference_basis"] = "original" #"translated"
+        # Bandwidth for domain difference image
+        CONFIG["domain_diff_bw"] = tf.constant(3, dtype=tf.float32) # tf.constant(3, dtype=tf.float32)
+        CONFIG["krnl_width_x"] = 0.25 
+        CONFIG["krnl_width_y"] = 0.25 
+
+        # Suffix to add to log output name
+        suffix = "_NOTILDE_kwx0p25_kwy0p25"  # "_kwx0p25_kwy0p25" # "_sigma25pct" # "_domdiffBW3_kwx0p50_kwy0p50" 
+        #suffix = ""
         print(suffix)
         CONFIG["patch_size"] = 20
         CONFIG["batch_size"] = 25
-        CONFIG["batches"] = 100
-        print("Setting patch size to: ", CONFIG["patch_size"])
-        print("Setting batch size to: ", CONFIG["batch_size"])
-        suffix += "_patch"+str(CONFIG["patch_size"])+"_batch"+str(CONFIG["batch_size"])
-        suffix += "_"+str(CONFIG["batches"])+"_batches"
+        CONFIG["batches"] = 150
+        CONFIG["affinity_patch_size"] = 20
+        print("Patch Size (ps): ", CONFIG["patch_size"])
+        print("Affinity Patch Size (aps): ", CONFIG["affinity_patch_size"])
+        print("number of Patches In Batch (pib): ", CONFIG["batch_size"])
+        print("number of Batches Ier Epoch (bie): ", CONFIG["batches"])
+        suffix += "_ps"+str(CONFIG["patch_size"])+"_aps"+str(CONFIG["affinity_patch_size"])
+        suffix += "_pib"+str(CONFIG["batch_size"])+"_bie"+str(CONFIG["batches"])
+        #suffix += "_"+str(CONFIG["batches"])+"_batches"
         
         if DATASET in polmak_list:
             print("Usinging Polmak processing dict")
@@ -346,7 +393,7 @@ if __name__ == "__main__":
             load_options["debug"] = True
             load_options["row_shift"] = int(0)
             load_options["col_shift"] = int(0)
-            load_options["reduce"] = False
+            load_options["reduce"] = True
         else:
             load_options = None
         
