@@ -6,3 +6,5 @@
 **/ParforProgress2/**
 Dumpster.*
 .Rhistory
+legacy/Deep_Image_Translation/run_acenet_py.sh
+legacy/Deep_Image_Translation/run_xnet_py.sh
