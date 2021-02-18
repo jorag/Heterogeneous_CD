@@ -151,6 +151,24 @@ class ChangeDetector:
 
         return tf.cast(conf_map, tf.float32)
 
+    @image_to_tensorboard(static_name="z_Confusion_map_alt")
+    def _decorated_confusion_map(self, target_change_map, change_map, static_name="z_Confusion_map_alt"):
+        """
+            Decorated
+        """
+        conf_map = tf.concat(
+            [
+                target_change_map,
+                change_map,
+                tf.math.logical_and(target_change_map, change_map),
+            ],
+            axis=-1,
+            name="confusion map",
+        )
+
+        return tf.cast(conf_map, tf.float32)
+
+
     def early_stopping_criterion(self):
         """
             To be implemented in subclasses.
@@ -269,6 +287,42 @@ class ChangeDetector:
             ev_res = self.evaluate(*eval_data, final_filter)
         self._save_images.assign(False)
         tf.summary.flush(self.tb_writer)
+
+
+    def alt_evaluate(self, evaluation_dataset, save_images, final_filter, **kwargs):
+        """
+            Call evaluate method wrapped with image saving logic
+
+            Inputs:
+                evaluation_dataset - tf.data.Dataset with tensors x, y, tcm
+                    x - image of size (h, w, c_x)
+                    y - image of size (h, w, c_y)
+                    target_change_map - change map of size (h, w, 1)
+                save_images=True - bool, wheter to store images after training
+                final_filter - passed to evaluate. Can be None
+                               Can be decorated with image_to_tensorboard
+        """
+        self._save_images.assign(save_images)
+        for eval_data in evaluation_dataset.batch(1):
+            x = eval_data[0]
+            y = eval_data[1]
+            target_change_map = eval_data[2]
+
+        difference_img = self((x, y), training=False)
+        #self._compute_metrics(
+        #    target_change_map, difference_img, self.difference_img_metrics
+        #)
+
+        change_map = self._change_map(difference_img)
+        #self._compute_metrics(target_change_map, change_map, self.change_map_metrics)
+
+        #tf.print("cohens kappa:", self.metrics_history["cohens kappa"][-1])
+        confusion_map = self._confusion_map(target_change_map, change_map, name="z_Confusion_map_alt2")
+
+        
+        self._save_images.assign(False)
+        tf.summary.flush(self.tb_writer)
+
 
     def _compute_metrics(self, y_true, y_pred, metrics):
         """

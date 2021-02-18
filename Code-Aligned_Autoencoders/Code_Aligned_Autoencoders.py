@@ -289,10 +289,6 @@ def test(DATASET="Texas", CONFIG=None):
     if CONFIG is None:
         CONFIG = get_config_kACE(DATASET)
     
-
-    # Save config parameters
-    with open(os.path.join(CONFIG["logdir"], "config.txt"), "w+") as f:
-        print(CONFIG, file=f)
     
     print(f"Loading {DATASET} data")
     x_im, y_im, EVALUATE, (C_X, C_Y) = datasets.fetch(DATASET, **CONFIG)
@@ -334,12 +330,19 @@ def test(DATASET="Texas", CONFIG=None):
 
     cd.save_all_weights()
     cd.final_evaluate(EVALUATE, **CONFIG)
+    # Alternate evaluation
+    cd.alt_evaluate(EVALUATE, **CONFIG)
     final_kappa = cd.metrics_history["cohens kappa"][-1]
     final_acc = cd.metrics_history["ACC"][-1]
     performance = (final_kappa, final_acc)
     timestamp = cd.timestamp
     epoch = cd.epoch.numpy()
     speed = (epoch, training_time, timestamp)
+
+    # Save config parameters
+    with open(os.path.join(CONFIG["logdir"], "config.txt"), "w+") as f:
+        print(CONFIG, file=f)
+
     del cd
     gc.collect()
 
@@ -366,16 +369,16 @@ if __name__ == "__main__":
         CONFIG["difference_basis"] = "original" #"translated"
         # Bandwidth for domain difference image
         CONFIG["domain_diff_bw"] = tf.constant(3, dtype=tf.float32) # tf.constant(3, dtype=tf.float32)
-        CONFIG["krnl_width_x"] = 0.25 
-        CONFIG["krnl_width_y"] = 0.25 
+        #CONFIG["krnl_width_x"] = 1.50 
+        #CONFIG["krnl_width_y"] = 1.50 
 
         # Suffix to add to log output name
-        suffix = "_NOTILDE_kwx0p25_kwy0p25"  # "_kwx0p25_kwy0p25" # "_sigma25pct" # "_domdiffBW3_kwx0p50_kwy0p50" 
+        suffix = "_NOTILDE_"  # "_kwx0p25_kwy0p25" # "_sigma25pct" # "_domdiffBW3_kwx0p50_kwy0p50" 
         #suffix = ""
         print(suffix)
         CONFIG["patch_size"] = 20
         CONFIG["batch_size"] = 25
-        CONFIG["batches"] = 150
+        CONFIG["batches"] = 100
         CONFIG["affinity_patch_size"] = 20
         print("Patch Size (ps): ", CONFIG["patch_size"])
         print("Affinity Patch Size (aps): ", CONFIG["affinity_patch_size"])
