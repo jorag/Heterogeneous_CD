@@ -129,7 +129,7 @@ class ChangeDetector:
 
         return difference_img >= threshold
 
-    #@image_to_tensorboard(static_name="z_Confusion_map")
+    @image_to_tensorboard(static_name="z_Confusion_map")
     # @tf.function
     def _confusion_map(self, target_change_map, change_map):
         """
@@ -150,17 +150,6 @@ class ChangeDetector:
         )
 
         return tf.cast(conf_map, tf.float32)
-
-    #@image_to_tensorboard(static_name="z_Confusion_map_alt")
-    def _decorated_confusion_map(self, static_name="z_Confusion_map"):
-        """
-            Decorated confusion map.
-        """
-        @image_to_tensorboard(static_name=static_name)  # , pre_process=pre_process)
-        def create_conf_map(self, x, y, difference_img):
-            return _confusion_map(target_change_map, change_map)
-
-        return create_conf_map
 
 
     def early_stopping_criterion(self):
@@ -259,9 +248,7 @@ class ChangeDetector:
         self._compute_metrics(target_change_map, change_map, self.change_map_metrics)
 
         tf.print("cohens kappa:", self.metrics_history["cohens kappa"][-1])
-        create_conf_map = self._decorated_confusion_map(static_name="z_Confusion_map")
-        #confusion_map = self._confusion_map(target_change_map, change_map)
-        confusion_map = create_conf_map(target_change_map, change_map)
+        confusion_map = self._confusion_map(target_change_map, change_map)
 
         return confusion_map
 
