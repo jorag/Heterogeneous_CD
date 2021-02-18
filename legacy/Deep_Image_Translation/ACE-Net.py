@@ -30,6 +30,8 @@ import pydensecrf.densecrf as dcrf
 from pydensecrf.utils import create_pairwise_bilateral
 from pydensecrf.utils import create_pairwise_gaussian
 
+from skimage import data, io, filters
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset", default=-1, type=int)
 parser.add_argument("--recon", default=0.2, type=float)
@@ -42,7 +44,7 @@ args = parser.parse_args()
 DATASET = args.dataset
 PRE_TRAIN = 0
 TRAIN = 1
-NAME_DATASET = ["Texas", "California"]
+NAME_DATASET = ["Texas", "California", "Polmak-LS5-S2", "Polmak-LS5-S2-reduce"]
 USE_PATCHES = 0  # DATASET
 
 LEARNING_RATE = 10e-5
@@ -70,6 +72,12 @@ if DATASET == 1:
     nc1 = 11
     nc2 = 3
 elif DATASET == 0:
+    nc1 = 7
+    nc2 = 10
+elif DATASET == 2:
+    nc1 = 7
+    nc2 = 10
+elif DATASET == 3:
     nc1 = 7
     nc2 = 10
 else:
@@ -415,9 +423,9 @@ class ACE(object):
             d = self.get_affinities(
                 self.remove_borders(x_resize), self.remove_borders(y_resize)
             )
-            d = numpy.array(Image.fromarray(d).resize((D.shape[0], D.shape[1])))
+            d = np.array(Image.fromarray(d).resize((D.shape[0], D.shape[1])))
             self.save_image(255.0 * d, "Aff_" + str(i) + ".png")
-            D[..., i] = d
+            D[..., i] = np.transpose(d)
         return np.mean(D, axis=-1)
 
     def get_affinities(self, x, y):
@@ -699,6 +707,57 @@ def run_model():
         mask = np.array(mat["ROI_1"], dtype=bool)
         t1 = np.array(mat["t1_L5"], dtype=float)
         t2 = np.array(mat["t2_ALI"], dtype=float)
+        temp1 = np.reshape(t1, (-1, nc1))
+        temp2 = np.reshape(t2, (-1, nc2))
+        limits = np.mean(temp1, 0) + 3.0 * np.std(temp1, 0)
+        for channel, limit in enumerate(limits):
+            temp = temp1[:, channel]
+            temp[temp > limit] = limit
+            temp = 2.0 * temp / np.max(temp) - 1.0
+            temp1[:, channel] = temp
+        limits = np.mean(temp2, 0) + 3.0 * np.std(temp2, 0)
+        for channel, limit in enumerate(limits):
+            temp = temp2[:, channel]
+            temp[temp > limit] = limit
+            temp = 2.0 * temp / np.max(temp) - 1.0
+            temp2[:, channel] = temp
+        t1 = np.reshape(temp1, np.shape(t1))
+        t2 = np.reshape(temp2, np.shape(t2))
+        del temp1, temp2, limits, temp
+    elif DATASET == 2:
+        im = io.imread("data/Polmak/ls5-s2-qgis-align.tif")
+        changemap = io.imread("data/Polmak/ls5-s2-align-changemap.tif")
+        t1 = np.array(im[:, :-2, 10:17])
+        t2 = np.array(im[:, 2:, 0:10])
+        mask = np.array(changemap[:,1:-1,0], dtype=bool)
+        mat = None
+
+        temp1 = np.reshape(t1, (-1, nc1))
+        temp2 = np.reshape(t2, (-1, nc2))
+        limits = np.mean(temp1, 0) + 3.0 * np.std(temp1, 0)
+        for channel, limit in enumerate(limits):
+            temp = temp1[:, channel]
+            temp[temp > limit] = limit
+            temp = 2.0 * temp / np.max(temp) - 1.0
+            temp1[:, channel] = temp
+        limits = np.mean(temp2, 0) + 3.0 * np.std(temp2, 0)
+        for channel, limit in enumerate(limits):
+            temp = temp2[:, channel]
+            temp[temp > limit] = limit
+            temp = 2.0 * temp / np.max(temp) - 1.0
+            temp2[:, channel] = temp
+        t1 = np.reshape(temp1, np.shape(t1))
+        t2 = np.reshape(temp2, np.shape(t2))
+        del temp1, temp2, limits, 
+    elif DATASET == 3:
+        t1 = io.imread("data/Polmak/LS5-align-ls5-s2-reduce.tif")
+        t2 = io.imread("data/Polmak/S2-align-ls5-s2-reduce.tif")
+        changemap = io.imread("data/Polmak/ls5-s2-align-changemap-reduce.tif")
+        # Remove lat and lon bands
+        t1, t2 = np.array(t1[:, :-2, :-2]), np.array(t2[:, 2:, :-2])
+        mask = np.array(changemap[:,1:-1,0], dtype=bool)
+        mat = None
+
         temp1 = np.reshape(t1, (-1, nc1))
         temp2 = np.reshape(t2, (-1, nc2))
         limits = np.mean(temp1, 0) + 3.0 * np.std(temp1, 0)
