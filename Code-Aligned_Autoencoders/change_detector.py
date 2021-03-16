@@ -84,7 +84,7 @@ class ChangeDetector:
     @image_to_tensorboard(static_name=None)
     # @tf.function
     def _domain_difference_img(
-        self, original, transformed, bandwidth=tf.constant(3, dtype=tf.float32)
+        self, original, transformed, bandwidth=None
     ):
         """
             Compute difference image in one domain between original image
@@ -92,8 +92,10 @@ class ChangeDetector:
             Bandwidth governs the norm difference clipping threshold
         """
         d = tf.norm(original - transformed, ord=2, axis=-1)
-        threshold = tf.math.reduce_mean(d) + bandwidth * tf.math.reduce_std(d)
-        d = tf.where(d < threshold, d, threshold)
+        # Check if difference values should be capped
+        if bandwidth is not None:
+            threshold = tf.math.reduce_mean(d) + bandwidth * tf.math.reduce_std(d)
+            d = tf.where(d < threshold, d, threshold)
 
         return tf.expand_dims(d / tf.reduce_max(d), -1)
 
@@ -105,8 +107,10 @@ class ChangeDetector:
         """
         assert x.shape[0] == y.shape[0] == 1, "Can not handle batch size > 1"
 
-        d_x = self._domain_difference_img(x, x_hat, name="x_ut_diff")
-        d_y = self._domain_difference_img(y, y_hat, name="y_ut_diff")
+        d_x = self._domain_difference_img(x, x_hat, name="x_ut_diff",
+            bandwidth=self.domain_diff_bw_x)
+        d_y = self._domain_difference_img(y, y_hat, name="y_ut_diff",
+            bandwidth=self.domain_diff_bw_y)
 
         # Weighted average based on the number of estimated channels
         c_x, c_y = x.shape[-1], y.shape[-1]

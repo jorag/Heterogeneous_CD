@@ -48,7 +48,8 @@ class Kern_AceNet(ChangeDetector):
         self.aps = kwargs.get("affinity_patch_size", 20)
         # 
         self.difference_basis = kwargs.get("difference_basis", "translated")
-        self.domain_diff_bw = kwargs.get("domain_diff_bw", tf.constant(3, dtype=tf.float32))
+        self.domain_diff_bw_x = kwargs.get("domain_diff_bw_x", tf.constant(3, dtype=tf.float32))
+        self.domain_diff_bw_y = kwargs.get("domain_diff_bw_y", tf.constant(3, dtype=tf.float32))
         # Global kernel width
         self.krnl_width_x = kwargs.get("krnl_width_x", None) 
         self.krnl_width_y = kwargs.get("krnl_width_y", None) 
@@ -356,8 +357,8 @@ if __name__ == "__main__":
     
     process_list = ["Polmak-LS5-S2"] # [ "Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C"] # ["Polmak-Pal-RS2_010817-collocate"]
     #process_list = polmak_list
-    #process_list = ["Polmak-LS5-S2", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
-    #"Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked"]
+    # process_list = ["Polmak-LS5-S2", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
+    #"Polmak-LS5-PGNLM_C"]
     for DATASET in process_list:
         print(DATASET)
         if DATASET in ["Polmak-Pal-RS2_010817-collocate", "Polmak-LS5-S2-NDVI"]:
@@ -367,17 +368,18 @@ if __name__ == "__main__":
         
         # Basis for difference image
         CONFIG["difference_basis"] = "original" #"translated"
-        # Bandwidth for domain difference image
-        CONFIG["domain_diff_bw"] = tf.constant(3, dtype=tf.float32) # tf.constant(3, dtype=tf.float32)
-        #CONFIG["krnl_width_x"] = 1.50 
-        #CONFIG["krnl_width_y"] = 1.50 
+        # Bandwidth for domain difference images
+        CONFIG["domain_diff_bw_x"] = tf.constant(3.0, dtype=tf.float32)  # tf.constant(3, dtype=tf.float32)
+        CONFIG["domain_diff_bw_y"] = tf.constant(3.0, dtype=tf.float32) # tf.constant(3, dtype=tf.float32)
+        #CONFIG["krnl_width_x"] = 1.0 
+        #CONFIG["krnl_width_y"] = 1.0
 
         # Suffix to add to log output name
-        suffix = "_NOTILDE_"  # "_kwx0p25_kwy0p25" # "_sigma25pct" # "_domdiffBW3_kwx0p50_kwy0p50" 
+        suffix = "_NOTILDE" # "_sigma25pct" # "_domdiffBW3_kwx0p50_kwy0p50" # "_NOTILDE_kwx1p0_kwy1p0" # 
         #suffix = ""
         print(suffix)
-        CONFIG["patch_size"] = 20
-        CONFIG["batch_size"] = 25
+        CONFIG["patch_size"] = 100
+        CONFIG["batch_size"] = 10
         CONFIG["batches"] = 100
         CONFIG["affinity_patch_size"] = 20
         print("Patch Size (ps): ", CONFIG["patch_size"])
@@ -396,7 +398,7 @@ if __name__ == "__main__":
             load_options["debug"] = True
             load_options["row_shift"] = int(0)
             load_options["col_shift"] = int(0)
-            load_options["reduce"] = True
+            load_options["reduce"] = False
         else:
             load_options = None
         
