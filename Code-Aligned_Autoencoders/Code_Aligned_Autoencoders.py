@@ -353,18 +353,23 @@ def test(DATASET="Texas", CONFIG=None):
 if __name__ == "__main__":
     polmak_list = ["Polmak-LS5-S2", "Polmak-LS5-S2-collocate", "Polmak-LS5-S2-NDVI",
     "Polmak-LS5-S2-warp", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
-    "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked", "Polmak-Pal-RS2_010817-collocate"]
+    "Polmak-LS5-PGNLM_C", "Polmak-LS5-PGNLM_A-stacked", "Polmak-LS5-PGNLM_C-stacked", "Polmak-Pal-RS2_010817-collocate",
+    "Polmak-Air05-Air10-align_sub0", "Polmak-Air05-Air15-align_sub0", "Polmak-Air10-Air15-align_sub0",
+    "Polmak-Air05-S2-align_sub0", "Polmak-Air15-S2-align_sub0"]
     
-    #process_list = ["Polmak-LS5-S2"] # [ "Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C"] # ["Polmak-Pal-RS2_010817-collocate"]
+    #process_list = ["Polmak-Pal-RS2_010817-collocate"] # ["Polmak-LS5-S2"] # [ "Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C"] # ["Polmak-Pal-RS2_010817-collocate"]
     #process_list = polmak_list
-    process_list = ["Polmak-Air05-S2-align_sub0"] # ["Polmak-Air05-Air10-align_sub0", "Polmak-Air05-Air15-align_sub0"]
+    process_list = ["Polmak-Air05-Air10-align_sub0", "Polmak-Air10-Air15-align_sub0"] #"Polmak-Air05-Air15-align_sub0"] #, 
+    #process_list = ["Polmak-Air05-S2-align_sub0", "Polmak-Air15-S2-align_sub0"] 
+    # ["Polmak-Air05-Air10-align_sub0", "Polmak-Air05-Air15-align_sub0"]
     # process_list = ["Polmak-LS5-S2", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
     #"Polmak-LS5-PGNLM_C"]
     for DATASET in process_list:
-        print(DATASET)
-        if DATASET in ["Polmak-Pal-RS2_010817-collocate", "Polmak-LS5-S2-NDVI"]:
-            print("Skipping dataset!")
+        if DATASET in ["Polmak-Pal-RS2_010817-collocate", "Polmak-LS5-S2-NDVI", "Polmak-Air05-S2-align_sub0", "Polmak-Air15-S2-align_sub0"]: # "Polmak-Pal-RS2_010817-collocate", 
+            print("Skipping dataset: "+DATASET)
             continue
+        else:
+            print(DATASET)
         CONFIG = get_config_kACE(DATASET)
         
         # Basis for difference image
@@ -379,9 +384,9 @@ if __name__ == "__main__":
         suffix = "_NOTILDE" # "_sigma25pct" # "_domdiffBW3_kwx0p50_kwy0p50" # "_NOTILDE_kwx1p0_kwy1p0" # 
         #suffix = ""
         print(suffix)
-        CONFIG["patch_size"] = 100
-        CONFIG["batch_size"] = 10
-        CONFIG["batches"] = 100
+        CONFIG["patch_size"] = 20
+        CONFIG["batch_size"] = 13
+        CONFIG["batches"] = 500
         CONFIG["affinity_patch_size"] = 20
         print("Patch Size (ps): ", CONFIG["patch_size"])
         print("Affinity Patch Size (aps): ", CONFIG["affinity_patch_size"])

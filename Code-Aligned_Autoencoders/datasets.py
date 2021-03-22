@@ -1081,6 +1081,64 @@ def _polmak_air05_s2_align_sub0(load_options=None):
     return t1, t2, change_mask
 
 
+def _polmak_air15_s2_align_sub0(load_options=None):
+    """ Load Polmak sudo-aligned aerial photo 2015-S2 dataset. """
+    print("Test Polmak aerial photo 2015-S2 dataset, psudo QGIS align UTM33N.")
+    if not isinstance(load_options, dict):
+        load_options = _default_load_options(load_options)
+
+    # Use full scene, or zoom in on AOI?
+    if load_options["reduce"]:
+        print("Reduce has been disabled.")
+    else:
+        im1 = io.imread("data/Polmak/subset_0_of_air05-air15_qgis_align_UTM33N.tif")
+        im2 = io.imread("data/Polmak/subset_0_of_air2005-S2_qgis_align_UTM33N.tif")
+        # Same changemap since years 05, 10, and 15 are in same .tif
+        changemap = io.imread("data/Polmak/air05-air15_sub0-align-changemap.tif")
+        t1 = np.array(im1[:,:,6:9])
+        # Same changemap since years 05, 10, and 15 are in same .tif
+        #changemap = io.imread("data/Polmak/air05-s2_sub0-align-changemap.tif")
+        t2 = np.array(im2[:,:,0:10])
+        
+
+    # Shift image?
+    if load_options["row_shift"] !=0 or load_options["col_shift"] !=0:
+        t1, t2, changemap = _shift_im(t1, t2, changemap, load_options)
+    
+    if load_options["debug"]:
+        _debug_print_bands(t1); _debug_print_bands(t2)
+
+    # Normalise to -1 to 1 range
+    if load_options["norm_type"] in ["_clip", "clip", "_clip_norm"]:
+        t1, t2 = np.array(t1, dtype=np.single), np.array(t2, dtype=np.single)
+        t1, t2 = _clip(t1), _clip(t2)
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+    else:
+        t1 = _norm01(t1, norm_type="band")
+        t1 = 2*t1 -1
+        t2 = _norm01(t2, norm_type="band")
+        t2 = 2*t2 -1
+        if load_options["debug"]:
+            _debug_print_bands(t1); _debug_print_bands(t2)
+
+    # Convert to tensors
+    t1 = tf.convert_to_tensor(t1, dtype=tf.float32)
+    t2 = tf.convert_to_tensor(t2, dtype=tf.float32)
+    change_mask = tf.convert_to_tensor(changemap[:,:,0], dtype=tf.bool)
+    
+    if load_options["debug"]:
+        print(t1.shape)
+        print(t2.shape)
+        print(change_mask.shape)
+
+    assert t1.shape[:2] == t2.shape[:2] == change_mask.shape[:2]
+    if change_mask.ndim == 2:
+        change_mask = change_mask[..., np.newaxis]
+
+    return t1, t2, change_mask
+
+
 def _clip(image):
     """
         Normalize image from R_+ to [-1, 1].
@@ -1286,6 +1344,7 @@ DATASETS = {
     "Polmak-Air05-Air10-align_sub0": _polmak_air05_air10_align_sub0,
     "Polmak-Air10-Air15-align_sub0": _polmak_air10_air15_align_sub0,
     "Polmak-Air05-S2-align_sub0": _polmak_air05_s2_align_sub0,
+    "Polmak-Air15-S2-align_sub0": _polmak_air15_s2_align_sub0,
 }
 
 prepare_data = {
@@ -1307,9 +1366,10 @@ prepare_data = {
     "Polmak-A2-S2-collocate": False,
     "Polmak-Pal-RS2_010817-collocate": False,
     "Polmak-Air05-Air15-align_sub0": False,
-    "Polmak-Air10-Air15-align_sub0": False,
+    "Polmak-Air05-Air10-align_sub0": False,
     "Polmak-Air10-Air15-align_sub0": False,
     "Polmak-Air05-S2-align_sub0": False,
+    "Polmak-Air15-S2-align_sub0": False,
 }
 
 
