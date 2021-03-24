@@ -344,6 +344,38 @@ def test(DATASET="Texas", CONFIG=None):
     with open(os.path.join(CONFIG["logdir"], "config.txt"), "w+") as f:
         print(CONFIG, file=f)
 
+    # Save full translated images
+    train_flag_tmp = False
+    x_code, y_code = cd._enc_x(x, train_flag_tmp), cd._enc_y(y, train_flag_tmp)
+    x_hat, y_hat = cd._dec_x(y_code, train_flag_tmp), cd._dec_y(x_code, train_flag_tmp)
+    #x_hat = 
+    #y_hat = cd([x, y], training=True)
+    import skimage
+    import tifffile
+    #from PIL import Image
+    #skimage.io.imsave(os.path.join(CONFIG["logdir"],"x_hat_full.tif"), np.squeeze(np.array(x_hat))) # plugin='tifffile'
+    im_dir = CONFIG["logdir"] #os.path.join(CONFIG["logdir"], "images")
+    print("SHAPE OF X_HAT: ", x_hat.shape)
+    print("SHAPE OF Y_HAT: ", y_hat.shape)
+    x_hat_out = np.squeeze(np.array(x_hat))
+    y_hat_out = np.squeeze(np.array(y_hat))
+    #x_hat_out = np.transpose(x_hat_out, (2, 0, 1))
+    #y_hat_out = np.transpose(y_hat_out, (2, 0, 1))
+    print("SHAPE OF X_HAT_OUT: ", x_hat_out.shape)
+    print("SHAPE OF Y_HAT_OUT: ", y_hat_out.shape)
+    #imx = Image.fromarray((x_hat_out*255).astype(np.uint8))
+    #imy = Image.fromarray((y_hat_out*255).astype(np.uint8))
+    #imx.save(os.path.join(im_dir,"x_hat_full.tif"))
+    #imy.save(os.path.join(im_dir,"y_hat_full.tif"))
+    tifffile.imsave(os.path.join(im_dir,"x_hat_full.tif"), x_hat_out, planarconfig="contig")
+    tifffile.imsave(os.path.join(im_dir,"y_hat_full.tif"), y_hat_out, planarconfig="contig")
+    #skimage.io.imsave(os.path.join(im_dir,"x_hat_full.tif"), 
+    #    x_hat_out, plugin="tifffile") # , metadata={"axes": "XYC"})
+    #skimage.io.imsave(os.path.join(im_dir,"y_hat_full.tif"), 
+    #    y_hat_out, plugin="tifffile") #, metadata={"axes": "XYC"})
+    #skimage.external.tifffile.imsave(os.path.join(im_dir,"x_hat_full.tif"), 
+    #    np.squeeze(np.array(x_hat)), plugin="tifffile")
+    #del y_hat, x_dot, y_dot, x_tilde, y_tilde, ztz
     del cd
     gc.collect()
 
@@ -357,9 +389,9 @@ if __name__ == "__main__":
     "Polmak-Air05-Air10-align_sub0", "Polmak-Air05-Air15-align_sub0", "Polmak-Air10-Air15-align_sub0",
     "Polmak-Air05-S2-align_sub0", "Polmak-Air15-S2-align_sub0"]
     
-    #process_list = ["Polmak-Pal-RS2_010817-collocate"] # ["Polmak-LS5-S2"] # [ "Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C"] # ["Polmak-Pal-RS2_010817-collocate"]
+    process_list = ["Polmak-LS5-S2"] #["Polmak-Pal-RS2_010817-collocate"] #  [ "Polmak-LS5-PGNLM_A", "Polmak-LS5-PGNLM_C"] # ["Polmak-Pal-RS2_010817-collocate"]
     #process_list = polmak_list
-    process_list = ["Polmak-Air05-Air10-align_sub0", "Polmak-Air10-Air15-align_sub0"] #"Polmak-Air05-Air15-align_sub0"] #, 
+    #process_list = ["Polmak-Air05-Air10-align_sub0", "Polmak-Air10-Air15-align_sub0"] #"Polmak-Air05-Air15-align_sub0"] #, 
     #process_list = ["Polmak-Air05-S2-align_sub0", "Polmak-Air15-S2-align_sub0"] 
     # ["Polmak-Air05-Air10-align_sub0", "Polmak-Air05-Air15-align_sub0"]
     # process_list = ["Polmak-LS5-S2", "Polmak-A2-S2", "Polmak-A2-S2-collocate", "Polmak-LS5-PGNLM_A", 
@@ -385,8 +417,8 @@ if __name__ == "__main__":
         #suffix = ""
         print(suffix)
         CONFIG["patch_size"] = 20
-        CONFIG["batch_size"] = 13
-        CONFIG["batches"] = 500
+        CONFIG["batch_size"] = 10
+        CONFIG["batches"] = 10
         CONFIG["affinity_patch_size"] = 20
         print("Patch Size (ps): ", CONFIG["patch_size"])
         print("Affinity Patch Size (aps): ", CONFIG["affinity_patch_size"])
@@ -404,7 +436,7 @@ if __name__ == "__main__":
             load_options["debug"] = True
             load_options["row_shift"] = int(0)
             load_options["col_shift"] = int(0)
-            load_options["reduce"] = False
+            load_options["reduce"] = True
         else:
             load_options = None
         
