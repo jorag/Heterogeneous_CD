@@ -13,6 +13,8 @@ from config import get_config_kACE
 from decorators import image_to_tensorboard
 import numpy as np
 from datetime import datetime
+import skimage
+import tifffile
 
 
 class Kern_AceNet(ChangeDetector):
@@ -348,34 +350,19 @@ def test(DATASET="Texas", CONFIG=None):
     train_flag_tmp = False
     x_code, y_code = cd._enc_x(x, train_flag_tmp), cd._enc_y(y, train_flag_tmp)
     x_hat, y_hat = cd._dec_x(y_code, train_flag_tmp), cd._dec_y(x_code, train_flag_tmp)
-    #x_hat = 
-    #y_hat = cd([x, y], training=True)
-    import skimage
-    import tifffile
-    #from PIL import Image
-    #skimage.io.imsave(os.path.join(CONFIG["logdir"],"x_hat_full.tif"), np.squeeze(np.array(x_hat))) # plugin='tifffile'
-    im_dir = CONFIG["logdir"] #os.path.join(CONFIG["logdir"], "images")
-    print("SHAPE OF X_HAT: ", x_hat.shape)
-    print("SHAPE OF Y_HAT: ", y_hat.shape)
+
+    im_dir = CONFIG["logdir"]
+    #print("SHAPE OF X_HAT: ", x_hat.shape)
+    #print("SHAPE OF Y_HAT: ", y_hat.shape)
     x_hat_out = np.squeeze(np.array(x_hat))
     y_hat_out = np.squeeze(np.array(y_hat))
-    #x_hat_out = np.transpose(x_hat_out, (2, 0, 1))
-    #y_hat_out = np.transpose(y_hat_out, (2, 0, 1))
-    print("SHAPE OF X_HAT_OUT: ", x_hat_out.shape)
-    print("SHAPE OF Y_HAT_OUT: ", y_hat_out.shape)
-    #imx = Image.fromarray((x_hat_out*255).astype(np.uint8))
-    #imy = Image.fromarray((y_hat_out*255).astype(np.uint8))
-    #imx.save(os.path.join(im_dir,"x_hat_full.tif"))
-    #imy.save(os.path.join(im_dir,"y_hat_full.tif"))
+    #print("SHAPE OF X_HAT_OUT: ", x_hat_out.shape)
+    #print("SHAPE OF Y_HAT_OUT: ", y_hat_out.shape)
+
     tifffile.imsave(os.path.join(im_dir,"x_hat_full.tif"), x_hat_out, planarconfig="contig")
     tifffile.imsave(os.path.join(im_dir,"y_hat_full.tif"), y_hat_out, planarconfig="contig")
-    #skimage.io.imsave(os.path.join(im_dir,"x_hat_full.tif"), 
-    #    x_hat_out, plugin="tifffile") # , metadata={"axes": "XYC"})
-    #skimage.io.imsave(os.path.join(im_dir,"y_hat_full.tif"), 
-    #    y_hat_out, plugin="tifffile") #, metadata={"axes": "XYC"})
-    #skimage.external.tifffile.imsave(os.path.join(im_dir,"x_hat_full.tif"), 
-    #    np.squeeze(np.array(x_hat)), plugin="tifffile")
-    #del y_hat, x_dot, y_dot, x_tilde, y_tilde, ztz
+
+    del y_hat, x_code, y_hat, y_code
     del cd
     gc.collect()
 
@@ -416,9 +403,9 @@ if __name__ == "__main__":
         suffix = "_NOTILDE" # "_sigma25pct" # "_domdiffBW3_kwx0p50_kwy0p50" # "_NOTILDE_kwx1p0_kwy1p0" # 
         #suffix = ""
         print(suffix)
-        CONFIG["patch_size"] = 20
+        CONFIG["patch_size"] = 100
         CONFIG["batch_size"] = 10
-        CONFIG["batches"] = 10
+        CONFIG["batches"] = 100
         CONFIG["affinity_patch_size"] = 20
         print("Patch Size (ps): ", CONFIG["patch_size"])
         print("Affinity Patch Size (aps): ", CONFIG["affinity_patch_size"])
@@ -436,7 +423,7 @@ if __name__ == "__main__":
             load_options["debug"] = True
             load_options["row_shift"] = int(0)
             load_options["col_shift"] = int(0)
-            load_options["reduce"] = True
+            load_options["reduce"] = False
         else:
             load_options = None
         
