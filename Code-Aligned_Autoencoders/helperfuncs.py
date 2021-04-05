@@ -56,6 +56,26 @@ def _shift_im(t1, t2, changemap, load_options):
     return t1, t2, changemap
 
 
+def _shift_2D(changemap, load_options):
+    """Shift a 2D image in row and colum.
+
+        Only handles total shifts of even number of pixels.   
+    """
+    
+    if load_options["debug"]:
+        print("Shifting 2D array...")
+    
+    if load_options["col_shift"] != 0:
+        col_half = int(np.ceil(np.abs(load_options["col_shift"])/2) )
+        changemap = changemap[:, col_half:-col_half]
+
+    if load_options["row_shift"] != 0:
+        row_half = int(np.ceil(np.abs(load_options["row_shift"])/2))
+        changemap = changemap[row_half:-row_half, :]
+
+    return changemap
+
+
 def _norm01(input_array, norm_type="global", min_cap=None, max_cap=None, min_cap_value=np.NaN, max_cap_value=np.NaN):
     """Normalise data.
     
